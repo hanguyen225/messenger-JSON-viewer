@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  messenger-viewer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    restart: unless-stopped
+    # Optional: Mount volume for persistent data if needed
+    # volumes:
+    #   - ./data:/app/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://localhost:3000',
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
