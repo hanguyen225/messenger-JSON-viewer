@@ -240,6 +240,97 @@ export default function HomePage() {
     return results;
   }, [groupedMessages, messageSearch]);
 
+  // Function to jump to a message by media item
+  const jumpToMediaMessage = (mediaItem: typeof mediaItems[0]) => {
+    if (!currentMessage) return;
+
+    // Find the message that contains this media
+    let targetMessageIndex = -1;
+    for (let i = 0; i < currentMessage.messages.length; i++) {
+      const msg = currentMessage.messages[i];
+      if (msg.timestamp_ms === mediaItem.timestamp_ms) {
+        // Check if message contains this media
+        const allMediaItems = [
+          ...(msg.photos || []).map((p) => ({ uri: p.uri, source: 'photos' })),
+          ...(msg.videos || []).map((v) => ({ uri: v.uri, source: 'videos' })),
+          ...(msg.audio || []).map((a) => ({ uri: a.uri, source: 'audio' })),
+          ...(msg.audio_files || []).map((a) => ({
+            uri: a.uri,
+            source: 'audio_files',
+          })),
+          ...(msg.files || []).map((f) => ({ uri: f.uri, source: 'files' })),
+          ...(msg.gifs || []).map((g) => ({ uri: g.uri, source: 'gifs' })),
+          ...(msg.media || []).map((m) => ({ uri: m.uri, source: 'media' })),
+        ];
+
+        if (
+          allMediaItems.some(
+            (item) =>
+              item.uri === mediaItem.uri && item.source === mediaItem.source
+          )
+        ) {
+          targetMessageIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (targetMessageIndex === -1) return;
+
+    // Convert message index to group index
+    const sortedMessages = currentMessage.messages
+      .slice()
+      .sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+    const msgInSorted = sortedMessages[targetMessageIndex];
+
+    let targetGroup = 0;
+    let cum = 0;
+    for (let gi = 0; gi < groupedMessages.length; gi++) {
+      const group = groupedMessages[gi];
+      if (
+        group.some(
+          (m) =>
+            m.timestamp_ms === msgInSorted.timestamp_ms &&
+            m.sender_name === msgInSorted.sender_name
+        )
+      ) {
+        targetGroup = gi;
+        break;
+      }
+      cum += group.length;
+    }
+
+    // Adjust visible window if needed
+    const windowStart = visibleStart;
+    const windowEnd = visibleStart + displayGroups.length - 1;
+
+    let desiredStart = windowStart;
+    if (targetGroup < windowStart) {
+      desiredStart = Math.max(0, targetGroup - Math.floor(VISIBLE_CHUNK / 2));
+    } else if (targetGroup > windowEnd) {
+      desiredStart = Math.max(0, targetGroup - Math.floor(VISIBLE_CHUNK / 2));
+    }
+
+    if (desiredStart !== visibleStart) {
+      setVisibleStart(desiredStart);
+      setTimeout(() => {
+        const relative = targetGroup - desiredStart;
+        messageGroupRef.current?.scrollToIndex({
+          index: relative,
+          align: 'center',
+        });
+        setSelectedMediaIndex(null);
+      }, 50);
+    } else {
+      const relative = targetGroup - visibleStart;
+      messageGroupRef.current?.scrollToIndex({
+        index: relative,
+        align: 'center',
+      });
+      setSelectedMediaIndex(null);
+    }
+  };
+
   // Scroll to search result when index changes
   useEffect(() => {
     if (!messageSearch.trim() || !searchResults || searchResults.length === 0)
@@ -946,6 +1037,7 @@ export default function HomePage() {
               initialIndex={selectedMediaIndex}
               rootDir={selectedChat.dirHandle}
               onClose={() => setSelectedMediaIndex(null)}
+              onJumpToMessage={jumpToMediaMessage}
             />
           )}
       </div>

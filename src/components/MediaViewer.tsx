@@ -5,6 +5,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   XIcon,
+  LinkIcon,
 } from '@heroicons/react/outline';
 
 const ATTACHMENT_FOLDER_HINTS: Record<string, string[]> = {
@@ -35,11 +36,13 @@ export default function MediaViewer({
   initialIndex,
   rootDir,
   onClose,
+  onJumpToMessage,
 }: {
   mediaItems: MediaItemWithTimestamp[];
   initialIndex: number;
   rootDir: FileSystemDirectoryHandle;
   onClose: () => void;
+  onJumpToMessage?: (item: MediaItemWithTimestamp) => void;
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -122,6 +125,17 @@ export default function MediaViewer({
       >
         <XIcon width={24} className='text-white' />
       </button>
+
+      {/* Jump to message button */}
+      {onJumpToMessage && (
+        <button
+          onClick={() => onJumpToMessage(currentItem)}
+          className='absolute top-4 right-16 flex items-center gap-2 rounded-full bg-blue-600 p-2 transition hover:bg-blue-700'
+          title='Jump to message'
+        >
+          <LinkIcon width={24} className='text-white' />
+        </button>
+      )}
 
       {/* Counter */}
       <div className='absolute top-4 left-4 rounded bg-black/50 px-3 py-1 text-sm font-medium text-white'>
