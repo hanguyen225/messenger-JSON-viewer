@@ -110,6 +110,12 @@ export async function getFileHandleRecursively(
   path: string,
   folderHints: string[] = []
 ): Promise<FileSystemFileHandle | null> {
+  const cacheKey = `${root.name}::${path}::${folderHints.join('|')}`;
+  const cached = fileHandleCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const normalizedPath = path.replace(/\\/g, '/').replace(/^\/+/, '');
   const parts = normalizedPath.split('/');
   const fileName = parts[parts.length - 1] || normalizedPath;
@@ -119,44 +125,53 @@ export async function getFileHandleRecursively(
     return null;
   }
 
-  try {
-    if (parts.length === 1) {
-      return await root.getFileHandle(parts[0]);
-    }
-
-    const dir = await root.getDirectoryHandle(parts[0]);
-    return getFileHandleRecursively(dir, parts.slice(1).join('/'), folderHints);
-  } catch {
-    const preferredFolders = Array.from(
-      new Set(
-        folderHints.map((hint) =>
-          hint.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
-        )
-      )
-    ).filter(Boolean);
-
-    for (const folderName of preferredFolders) {
-      try {
-        const folderHandle = await root.getDirectoryHandle(folderName);
-        const foundInPreferredFolder = await findFileByName(
-          folderHandle,
-          lowerFileName
-        );
-        if (foundInPreferredFolder) {
-          return foundInPreferredFolder;
-        }
-      } catch {
-        // ignore missing preferred folders
+  const resolved = (async () => {
+    try {
+      if (parts.length === 1) {
+        return await root.getFileHandle(parts[0]);
       }
-    }
 
-    const foundByName = await findFileByName(root, lowerFileName);
-    if (foundByName) {
-      return foundByName;
-    }
+      const dir = await root.getDirectoryHandle(parts[0]);
+      return getFileHandleRecursively(
+        dir,
+        parts.slice(1).join('/'),
+        folderHints
+      );
+    } catch {
+      const preferredFolders = Array.from(
+        new Set(
+          folderHints.map((hint) =>
+            hint.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+          )
+        )
+      ).filter(Boolean);
 
-    return null;
-  }
+      for (const folderName of preferredFolders) {
+        try {
+          const folderHandle = await root.getDirectoryHandle(folderName);
+          const foundInPreferredFolder = await findFileByName(
+            folderHandle,
+            lowerFileName
+          );
+          if (foundInPreferredFolder) {
+            return foundInPreferredFolder;
+          }
+        } catch {
+          // ignore missing preferred folders
+        }
+      }
+
+      const foundByName = await findFileByName(root, lowerFileName);
+      if (foundByName) {
+        return foundByName;
+      }
+
+      return null;
+    }
+  })();
+
+  fileHandleCache.set(cacheKey, resolved);
+  return resolved;
 }
 
 async function findFileByName(
@@ -178,3 +193,5 @@ async function findFileByName(
 
   return null;
 }
+
+const fileHandleCache = new Map<string, Promise<FileSystemFileHandle | null>>();
