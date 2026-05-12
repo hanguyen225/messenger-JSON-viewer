@@ -84,7 +84,7 @@ export default function MediaThumbnail({
     return (
       <button
         onClick={onClick}
-        className='flex h-12 flex-col items-center justify-center rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 cursor-pointer transition'
+        className='flex h-12 cursor-pointer flex-col items-center justify-center rounded bg-gray-200 transition hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
         title={item.name || item.uri}
       >
         <div className='text-xl'>🔊</div>
@@ -99,22 +99,23 @@ export default function MediaThumbnail({
     return (
       <button
         onClick={onClick}
-        className='relative overflow-hidden rounded bg-gray-300 dark:bg-gray-700 cursor-pointer hover:bg-gray-400 dark:hover:bg-gray-600 transition'
+        className='relative cursor-pointer overflow-hidden rounded bg-gray-300 transition hover:bg-gray-400 dark:bg-gray-700 dark:hover:bg-gray-600'
         style={{ paddingBottom: '100%' }}
       >
         <div className='absolute inset-0 flex items-center justify-center'>
           <span className='text-gray-500'>✗</span>
         </div>
-        {isVideo && (
-          <div className='absolute top-1 right-1 text-lg'>▶</div>
-        )}
+        {isVideo && <div className='absolute top-1 right-1 text-lg'>▶</div>}
       </button>
     );
   }
 
   if (!imageUrl) {
     return (
-      <div className='relative overflow-hidden rounded bg-gray-200 dark:bg-gray-700 animate-pulse' style={{ paddingBottom: '100%' }}>
+      <div
+        className='relative animate-pulse overflow-hidden rounded bg-gray-200 dark:bg-gray-700'
+        style={{ paddingBottom: '100%' }}
+      >
         <div className='absolute inset-0' />
       </div>
     );
@@ -123,7 +124,7 @@ export default function MediaThumbnail({
   return (
     <button
       onClick={onClick}
-      className='relative overflow-hidden rounded bg-gray-200 dark:bg-gray-700 cursor-pointer hover:opacity-80 transition'
+      className='relative cursor-pointer overflow-hidden rounded bg-gray-200 transition hover:opacity-80 dark:bg-gray-700'
       style={{ paddingBottom: '100%' }}
       title={item.name || item.uri}
     >

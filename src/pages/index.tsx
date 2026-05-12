@@ -19,18 +19,18 @@ import {
   decodeString,
   getMyselfName,
   loadChats,
+  useAllMediaItems,
   useChatStatistics,
   useCurrentMessage,
   useGroupedMessages,
-  useAllMediaItems,
 } from '@/lib/utils/message';
 
 import Collapsible from '@/components/Collapsible';
+import MediaThumbnail from '@/components/MediaThumbnail';
+import MediaViewer from '@/components/MediaViewer';
 import MessageComponent from '@/components/Message';
 import OnboardingCarousel from '@/components/OnboardingCarousel';
 import SearchInput from '@/components/SearchInput';
-import MediaThumbnail from '@/components/MediaThumbnail';
-import MediaViewer from '@/components/MediaViewer';
 
 function StartScreen({ openDirPicker }: { openDirPicker: () => void }) {
   const contents = [

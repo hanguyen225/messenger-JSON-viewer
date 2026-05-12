@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { getFileHandleRecursively } from '@/lib/utils/file';
 import { MediaItemWithTimestamp } from '@/lib/utils/message';
-import { ChevronLeftIcon, ChevronRightIcon, XIcon } from '@heroicons/react/outline';
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  XIcon,
+} from '@heroicons/react/outline';
 
 const ATTACHMENT_FOLDER_HINTS: Record<string, string[]> = {
   photos: ['photo', 'photos'],
@@ -101,15 +105,11 @@ export default function MediaViewer({
   }, [mediaItems.length, onClose]);
 
   const goNext = () => {
-    setCurrentIndex((prev) =>
-      prev < mediaItems.length - 1 ? prev + 1 : 0
-    );
+    setCurrentIndex((prev) => (prev < mediaItems.length - 1 ? prev + 1 : 0));
   };
 
   const goPrev = () => {
-    setCurrentIndex((prev) =>
-      prev > 0 ? prev - 1 : mediaItems.length - 1
-    );
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : mediaItems.length - 1));
   };
 
   return (
@@ -117,39 +117,39 @@ export default function MediaViewer({
       {/* Close button */}
       <button
         onClick={onClose}
-        className='absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 transition'
+        className='absolute top-4 right-4 rounded-full p-2 transition hover:bg-white/10'
         title='Close (Esc)'
       >
         <XIcon width={24} className='text-white' />
       </button>
 
       {/* Counter */}
-      <div className='absolute top-4 left-4 text-white text-sm font-medium bg-black/50 px-3 py-1 rounded'>
+      <div className='absolute top-4 left-4 rounded bg-black/50 px-3 py-1 text-sm font-medium text-white'>
         {currentIndex + 1} / {mediaItems.length}
       </div>
 
       {/* Main content */}
-      <div className='flex items-center justify-center h-full w-full'>
+      <div className='flex h-full w-full items-center justify-center'>
         {/* Previous button */}
         <button
           onClick={goPrev}
-          className='absolute left-4 p-3 rounded-full hover:bg-white/10 transition disabled:opacity-50'
+          className='absolute left-4 rounded-full p-3 transition hover:bg-white/10 disabled:opacity-50'
           title='Previous (← Arrow)'
         >
           <ChevronLeftIcon width={32} className='text-white' />
         </button>
 
         {/* Media display */}
-        <div className='flex flex-col items-center gap-4 max-w-4xl max-h-screen px-20'>
-          {loading && (
-            <div className='text-white text-center'>Loading...</div>
-          )}
+        <div className='flex max-h-screen max-w-4xl flex-col items-center gap-4 px-20'>
+          {loading && <div className='text-center text-white'>Loading...</div>}
 
           {!loading && isAudio && (
             <div className='flex flex-col items-center gap-4'>
               <div className='text-6xl'>🔊</div>
-              <div className='text-white text-center'>
-                <p className='font-semibold'>{currentItem.name || 'Audio File'}</p>
+              <div className='text-center text-white'>
+                <p className='font-semibold'>
+                  {currentItem.name || 'Audio File'}
+                </p>
                 <p className='text-sm text-gray-400'>
                   {new Date(currentItem.timestamp_ms).toLocaleString()}
                 </p>
@@ -164,23 +164,23 @@ export default function MediaViewer({
                   src={mediaUrl}
                   controls
                   autoPlay
-                  className='max-w-full max-h-screen rounded'
+                  className='max-h-screen max-w-full rounded'
                 />
               ) : (
                 <img
                   src={mediaUrl}
                   alt='media'
-                  className='max-w-full max-h-screen rounded object-contain'
+                  className='max-h-screen max-w-full rounded object-contain'
                 />
               )}
-              <p className='text-white text-sm text-center'>
+              <p className='text-center text-sm text-white'>
                 {new Date(currentItem.timestamp_ms).toLocaleString()}
               </p>
             </>
           )}
 
           {!loading && !mediaUrl && !isAudio && (
-            <div className='text-white text-center'>
+            <div className='text-center text-white'>
               <p>Failed to load media</p>
             </div>
           )}
@@ -189,7 +189,7 @@ export default function MediaViewer({
         {/* Next button */}
         <button
           onClick={goNext}
-          className='absolute right-4 p-3 rounded-full hover:bg-white/10 transition disabled:opacity-50'
+          className='absolute right-4 rounded-full p-3 transition hover:bg-white/10 disabled:opacity-50'
           title='Next (→ Arrow)'
         >
           <ChevronRightIcon width={32} className='text-white' />
