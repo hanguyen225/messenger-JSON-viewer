@@ -996,7 +996,9 @@ export default function HomePage() {
                 {/* Tabs */}
                 {(() => {
                   const ITEMS_PER_TAB = 300;
-                  const totalTabs = Math.ceil(mediaItems.length / ITEMS_PER_TAB);
+                  const totalTabs = Math.ceil(
+                    mediaItems.length / ITEMS_PER_TAB
+                  );
                   const startIdx = mediaTabIndex * ITEMS_PER_TAB;
                   const endIdx = Math.min(
                     startIdx + ITEMS_PER_TAB,
@@ -1008,23 +1010,25 @@ export default function HomePage() {
                     <>
                       {totalTabs > 1 && (
                         <div className='flex gap-2 overflow-x-auto pb-2'>
-                          {Array.from({ length: totalTabs }).map((_, tabIdx) => (
-                            <button
-                              key={tabIdx}
-                              onClick={() => setMediaTabIndex(tabIdx)}
-                              className={`whitespace-nowrap rounded px-3 py-1 text-sm transition ${
-                                mediaTabIndex === tabIdx
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
-                              }`}
-                            >
-                              {tabIdx * ITEMS_PER_TAB + 1}-
-                              {Math.min(
-                                (tabIdx + 1) * ITEMS_PER_TAB,
-                                mediaItems.length
-                              )}
-                            </button>
-                          ))}
+                          {Array.from({ length: totalTabs }).map(
+                            (_, tabIdx) => (
+                              <button
+                                key={tabIdx}
+                                onClick={() => setMediaTabIndex(tabIdx)}
+                                className={`whitespace-nowrap rounded px-3 py-1 text-sm transition ${
+                                  mediaTabIndex === tabIdx
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
+                                }`}
+                              >
+                                {tabIdx * ITEMS_PER_TAB + 1}-
+                                {Math.min(
+                                  (tabIdx + 1) * ITEMS_PER_TAB,
+                                  mediaItems.length
+                                )}
+                              </button>
+                            )
+                          )}
                         </div>
                       )}
 
