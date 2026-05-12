@@ -114,6 +114,7 @@ export default function HomePage() {
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(
     null
   );
+  const [mediaTabIndex, setMediaTabIndex] = useState(0);
 
   const [folderName, setFolderName] = useState<string | null>(null);
   const [messageSearch, setMessageSearch] = useState('');
@@ -140,6 +141,7 @@ export default function HomePage() {
     // Reset search when changing chats
     setMessageSearch('');
     setMessageSearchIndex(0);
+    setMediaTabIndex(0);
 
     const position = scrollPositionStore.get(folderName!);
 
@@ -991,38 +993,78 @@ export default function HomePage() {
                 onToggle={toggleMedia}
                 containerClassName='flex flex-col gap-4 py-4 px-5'
               >
-                <div className='grid grid-cols-3 gap-3'>
-                  {mediaItems.slice(0, 300).map((item, idx) => {
-                    const isImage = ['photos', 'gifs', 'media'].includes(
-                      item.source
-                    );
-                    const isVideo = ['videos'].includes(item.source);
-                    const isAudio = ['audio', 'audio_files'].includes(
-                      item.source
-                    );
+                {/* Tabs */}
+                {(() => {
+                  const ITEMS_PER_TAB = 300;
+                  const totalTabs = Math.ceil(mediaItems.length / ITEMS_PER_TAB);
+                  const startIdx = mediaTabIndex * ITEMS_PER_TAB;
+                  const endIdx = Math.min(
+                    startIdx + ITEMS_PER_TAB,
+                    mediaItems.length
+                  );
+                  const tabItems = mediaItems.slice(startIdx, endIdx);
 
-                    if (selectedChat?.dirHandle) {
-                      return (
-                        <MediaThumbnail
-                          key={`${item.timestamp_ms}_${idx}`}
-                          item={item}
-                          rootDir={selectedChat.dirHandle}
-                          isVideo={isVideo}
-                          isAudio={isAudio}
-                          onClick={() => setSelectedMediaIndex(idx)}
-                        />
-                      );
-                    }
+                  return (
+                    <>
+                      {totalTabs > 1 && (
+                        <div className='flex gap-2 overflow-x-auto pb-2'>
+                          {Array.from({ length: totalTabs }).map((_, tabIdx) => (
+                            <button
+                              key={tabIdx}
+                              onClick={() => setMediaTabIndex(tabIdx)}
+                              className={`whitespace-nowrap rounded px-3 py-1 text-sm transition ${
+                                mediaTabIndex === tabIdx
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
+                              }`}
+                            >
+                              {tabIdx * ITEMS_PER_TAB + 1}-
+                              {Math.min(
+                                (tabIdx + 1) * ITEMS_PER_TAB,
+                                mediaItems.length
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
-                    return null;
-                  })}
-                </div>
+                      {/* Grid */}
+                      <div className='grid grid-cols-3 gap-3'>
+                        {tabItems.map((item, localIdx) => {
+                          const globalIdx = startIdx + localIdx;
+                          const isImage = ['photos', 'gifs', 'media'].includes(
+                            item.source
+                          );
+                          const isVideo = ['videos'].includes(item.source);
+                          const isAudio = ['audio', 'audio_files'].includes(
+                            item.source
+                          );
 
-                {mediaItems.length > 300 && (
-                  <div className='text-center text-sm text-gray-500'>
-                    Showing 300 of {mediaItems.length} items
-                  </div>
-                )}
+                          if (selectedChat?.dirHandle) {
+                            return (
+                              <MediaThumbnail
+                                key={`${item.timestamp_ms}_${globalIdx}`}
+                                item={item}
+                                rootDir={selectedChat.dirHandle}
+                                isVideo={isVideo}
+                                isAudio={isAudio}
+                                onClick={() => setSelectedMediaIndex(globalIdx)}
+                              />
+                            );
+                          }
+
+                          return null;
+                        })}
+                      </div>
+
+                      {/* Info */}
+                      <div className='text-center text-sm text-gray-500'>
+                        Showing {startIdx + 1}-{endIdx} of {mediaItems.length}{' '}
+                        items
+                      </div>
+                    </>
+                  );
+                })()}
               </Collapsible>
             )}
           </div>
