@@ -22,12 +22,15 @@ import {
   useChatStatistics,
   useCurrentMessage,
   useGroupedMessages,
+  useAllMediaItems,
 } from '@/lib/utils/message';
 
 import Collapsible from '@/components/Collapsible';
 import MessageComponent from '@/components/Message';
 import OnboardingCarousel from '@/components/OnboardingCarousel';
 import SearchInput from '@/components/SearchInput';
+import MediaThumbnail from '@/components/MediaThumbnail';
+import MediaViewer from '@/components/MediaViewer';
 
 function StartScreen({ openDirPicker }: { openDirPicker: () => void }) {
   const contents = [
@@ -107,6 +110,10 @@ export default function HomePage() {
   const [chatMembersInfoExpanded, , toggleChatMembersInfo] = useToggle(false);
   const [messageCountExpanded, , toggleMessageCount] = useToggle(false);
   const [chatInfoExpanded, , toggleChatInfo] = useToggle(false);
+  const [mediaExpanded, , toggleMedia] = useToggle(false);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(
+    null
+  );
 
   const [folderName, setFolderName] = useState<string | null>(null);
   const [messageSearch, setMessageSearch] = useState('');
@@ -114,6 +121,7 @@ export default function HomePage() {
   const currentMessage = useCurrentMessage(folderName);
   const groupedMessages = useGroupedMessages(currentMessage);
   const chatStatistic = useChatStatistics(currentMessage);
+  const mediaItems = useAllMediaItems(currentMessage);
   const { windowControlsOverlayEnable, windowControlsOverlayRect } =
     useWindowOverlay();
   const searchbarWidth = useMemo(() => {
@@ -884,8 +892,62 @@ export default function HomePage() {
                 })()}
               </Collapsible>
             )}
+
+            {mediaItems && mediaItems.length > 0 && (
+              <Collapsible
+                title={`📷 Media (${mediaItems.length})`}
+                isExpanded={mediaExpanded}
+                onToggle={toggleMedia}
+                containerClassName='flex flex-col gap-4 py-4 px-5'
+              >
+                <div className='grid grid-cols-3 gap-3'>
+                  {mediaItems.slice(0, 300).map((item, idx) => {
+                    const isImage = ['photos', 'gifs', 'media'].includes(
+                      item.source
+                    );
+                    const isVideo = ['videos'].includes(item.source);
+                    const isAudio = ['audio', 'audio_files'].includes(
+                      item.source
+                    );
+
+                    if (selectedChat?.dirHandle) {
+                      return (
+                        <MediaThumbnail
+                          key={`${item.timestamp_ms}_${idx}`}
+                          item={item}
+                          rootDir={selectedChat.dirHandle}
+                          isVideo={isVideo}
+                          isAudio={isAudio}
+                          onClick={() => setSelectedMediaIndex(idx)}
+                        />
+                      );
+                    }
+
+                    return null;
+                  })}
+                </div>
+
+                {mediaItems.length > 300 && (
+                  <div className='text-center text-sm text-gray-500'>
+                    Showing 300 of {mediaItems.length} items
+                  </div>
+                )}
+              </Collapsible>
+            )}
           </div>
         )}
+
+        {/* Media Viewer Modal */}
+        {selectedMediaIndex !== null &&
+          selectedChat?.dirHandle &&
+          mediaItems.length > 0 && (
+            <MediaViewer
+              mediaItems={mediaItems}
+              initialIndex={selectedMediaIndex}
+              rootDir={selectedChat.dirHandle}
+              onClose={() => setSelectedMediaIndex(null)}
+            />
+          )}
       </div>
     );
   }

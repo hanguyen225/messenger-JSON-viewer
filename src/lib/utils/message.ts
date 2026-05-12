@@ -159,3 +159,116 @@ export function useGroupedActorsByReaction(message: Message) {
     return groupActorsByReaction(message.reactions);
   }, [message]);
 }
+
+type MediaSource =
+  | 'photos'
+  | 'videos'
+  | 'audio'
+  | 'audio_files'
+  | 'files'
+  | 'gifs'
+  | 'media';
+
+export type MediaItemWithTimestamp = {
+  timestamp_ms: number;
+  uri: string;
+  source: MediaSource;
+  name?: string;
+};
+
+export function useAllMediaItems(currentMessage: MessageData | null) {
+  return useMemo<MediaItemWithTimestamp[]>(() => {
+    if (!currentMessage) {
+      return [];
+    }
+
+    const mediaItems: MediaItemWithTimestamp[] = [];
+
+    for (const message of currentMessage.messages) {
+      const timestamp = message.timestamp_ms || 0;
+
+      // Photos
+      if (message.photos) {
+        for (const photo of message.photos) {
+          mediaItems.push({
+            timestamp_ms: timestamp,
+            uri: photo.uri,
+            source: 'photos',
+          });
+        }
+      }
+
+      // Videos
+      if (message.videos) {
+        for (const video of message.videos) {
+          mediaItems.push({
+            timestamp_ms: timestamp,
+            uri: video.uri,
+            source: 'videos',
+          });
+        }
+      }
+
+      // Audio
+      if (message.audio) {
+        for (const audio of message.audio) {
+          mediaItems.push({
+            timestamp_ms: timestamp,
+            uri: audio.uri,
+            source: 'audio',
+          });
+        }
+      }
+
+      // Audio files
+      if (message.audio_files) {
+        for (const audioFile of message.audio_files) {
+          mediaItems.push({
+            timestamp_ms: timestamp,
+            uri: audioFile.uri,
+            source: 'audio_files',
+          });
+        }
+      }
+
+      // Files
+      if (message.files) {
+        for (const file of message.files) {
+          mediaItems.push({
+            timestamp_ms: timestamp,
+            uri: file.uri,
+            source: 'files',
+            name: file.name,
+          });
+        }
+      }
+
+      // GIFs
+      if (message.gifs) {
+        for (const gif of message.gifs) {
+          mediaItems.push({
+            timestamp_ms: timestamp,
+            uri: gif.uri,
+            source: 'gifs',
+          });
+        }
+      }
+
+      // Media
+      if (message.media) {
+        for (const med of message.media) {
+          mediaItems.push({
+            timestamp_ms: timestamp,
+            uri: med.uri,
+            source: 'media',
+          });
+        }
+      }
+    }
+
+    // Sort by timestamp (oldest first)
+    mediaItems.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+
+    return mediaItems;
+  }, [currentMessage]);
+}
