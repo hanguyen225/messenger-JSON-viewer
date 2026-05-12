@@ -195,9 +195,20 @@ export default function HomePage() {
   // Build global list of search results across all grouped messages (not limited to window)
   const searchResults = useMemo(() => {
     const q = messageSearch.trim().toLowerCase();
-    if (!q || !groupedMessages) return [] as { groupIndex: number; messageIndex: number; start: number; length: number }[];
+    if (!q || !groupedMessages)
+      return [] as {
+        groupIndex: number;
+        messageIndex: number;
+        start: number;
+        length: number;
+      }[];
 
-    const results: { groupIndex: number; messageIndex: number; start: number; length: number }[] = [];
+    const results: {
+      groupIndex: number;
+      messageIndex: number;
+      start: number;
+      length: number;
+    }[] = [];
 
     for (let gi = 0; gi < groupedMessages.length; gi++) {
       const group = groupedMessages[gi];
@@ -207,7 +218,12 @@ export default function HomePage() {
         const lc = content.toLowerCase();
         let pos = lc.indexOf(q, 0);
         while (pos !== -1) {
-          results.push({ groupIndex: gi, messageIndex: mi, start: pos, length: q.length });
+          results.push({
+            groupIndex: gi,
+            messageIndex: mi,
+            start: pos,
+            length: q.length,
+          });
           pos = lc.indexOf(q, pos + q.length);
         }
       }
@@ -218,9 +234,11 @@ export default function HomePage() {
 
   // Scroll to search result when index changes
   useEffect(() => {
-    if (!messageSearch.trim() || !searchResults || searchResults.length === 0) return;
+    if (!messageSearch.trim() || !searchResults || searchResults.length === 0)
+      return;
 
-    const r = searchResults[Math.min(messageSearchIndex, searchResults.length - 1)];
+    const r =
+      searchResults[Math.min(messageSearchIndex, searchResults.length - 1)];
     if (!r) return;
 
     const targetGroup = r.groupIndex;
@@ -241,13 +259,25 @@ export default function HomePage() {
       // wait a tick for rendering then scroll
       setTimeout(() => {
         const relative = targetGroup - desiredStart;
-        messageGroupRef.current?.scrollToIndex({ index: relative, align: 'center' });
+        messageGroupRef.current?.scrollToIndex({
+          index: relative,
+          align: 'center',
+        });
       }, 50);
     } else {
       const relative = targetGroup - visibleStart;
-      messageGroupRef.current?.scrollToIndex({ index: relative, align: 'center' });
+      messageGroupRef.current?.scrollToIndex({
+        index: relative,
+        align: 'center',
+      });
     }
-  }, [messageSearchIndex, messageSearch, searchResults, visibleStart, displayGroups]);
+  }, [
+    messageSearchIndex,
+    messageSearch,
+    searchResults,
+    visibleStart,
+    displayGroups,
+  ]);
 
   const openDirPicker = async () => {
     try {
@@ -440,7 +470,8 @@ export default function HomePage() {
 
               {messageSearch && searchResults.length > 0 && (
                 <span className='text-sm text-gray-500'>
-                  {Math.min(messageSearchIndex + 1, searchResults.length)} / {searchResults.length}
+                  {Math.min(messageSearchIndex + 1, searchResults.length)} /{' '}
+                  {searchResults.length}
                 </span>
               )}
               {messageSearch && searchResults.length === 0 && (
@@ -660,7 +691,9 @@ export default function HomePage() {
                             isFirst={isFirst}
                             isLast={isLast}
                             isMe={isMe}
-                            highlightQuery={messageSearch.trim() ? messageSearch : undefined}
+                            highlightQuery={
+                              messageSearch.trim() ? messageSearch : undefined
+                            }
                           />
                         );
                       })}

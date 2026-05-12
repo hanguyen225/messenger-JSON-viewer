@@ -223,7 +223,6 @@ export default function MessageComponent({
   rootDir: FileSystemDirectoryHandle;
   highlightQuery?: string;
 }) {
-
   function renderHighlighted(text: string) {
     if (!highlightQuery) return text;
     const q = highlightQuery.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
