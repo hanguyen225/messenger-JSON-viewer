@@ -53,6 +53,7 @@ export async function readMessageJSON(dir: FileSystemDirectoryHandle) {
     const combined: any = {
       participants: [],
       title: '',
+      image: null,
       messages: [],
     };
 
@@ -63,6 +64,9 @@ export async function readMessageJSON(dir: FileSystemDirectoryHandle) {
         if (!combined.title) combined.title = json.title || combined.title;
         if (json.participants && combined.participants.length === 0) {
           combined.participants = json.participants;
+        }
+        if (!combined.image && json.image) {
+          combined.image = json.image;
         }
         if (Array.isArray(json.messages)) {
           combined.messages = combined.messages.concat(json.messages);
@@ -76,9 +80,8 @@ export async function readMessageJSON(dir: FileSystemDirectoryHandle) {
     const seen = new Set();
     const deduped: any[] = [];
     for (const m of combined.messages) {
-      const key = `${m.timestamp_ms || 0}-${
-        m.sender_name || ''
-      }-${JSON.stringify(m.content || m.photos || m.videos || m.audio || '')}`;
+      const key = `${m.timestamp_ms || 0}-${m.sender_name || ''
+        }-${JSON.stringify(m.content || m.photos || m.videos || m.audio || '')}`;
       if (!seen.has(key)) {
         seen.add(key);
         deduped.push(m);

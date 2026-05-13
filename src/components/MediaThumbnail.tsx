@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getFileHandleRecursively } from '@/lib/utils/file';
+import { useArchiveMode } from '@/lib/context/ArchiveContext';
+import { getServerFile, normalizeArchivePath } from '@/lib/utils/serverFile';
 import { MediaItemWithTimestamp } from '@/lib/utils/message';
 
 const ATTACHMENT_FOLDER_HINTS: Record<string, string[]> = {
@@ -21,47 +23,58 @@ const ATTACHMENT_FOLDER_HINTS: Record<string, string[]> = {
   ],
 };
 
-function normalizeAttachmentPath(uri: string) {
-  return uri.replace(/^messages[\\/]/, '').replace(/\\/g, '/');
-}
-
 export default function MediaThumbnail({
   item,
   rootDir,
   isVideo,
   isAudio,
   onClick,
+  folderName,
 }: {
   item: MediaItemWithTimestamp;
-  rootDir: FileSystemDirectoryHandle;
+  rootDir?: FileSystemDirectoryHandle;
   isVideo: boolean;
   isAudio: boolean;
   onClick?: () => void;
+  folderName?: string;
 }) {
+  const { mode: archiveMode } = useArchiveMode();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const normalizedUri = normalizeArchivePath(item.uri);
 
   useEffect(() => {
     let mounted = true;
 
     const loadMedia = async () => {
       try {
-        const normalizedUri = normalizeAttachmentPath(item.uri);
-        const hints = ATTACHMENT_FOLDER_HINTS[item.source] || [];
+        if (archiveMode === 'server' && folderName) {
+          // Load from server
+          const blob = await getServerFile(folderName, normalizedUri);
+          if (blob && mounted) {
+            const url = URL.createObjectURL(blob);
+            setImageUrl(url);
+            setError(false);
+          } else if (mounted) {
+            setError(true);
+          }
+        } else if (rootDir) {
+          // Load from local filesystem
+          const hints = ATTACHMENT_FOLDER_HINTS[item.source] || [];
+          const fileHandle = await getFileHandleRecursively(
+            rootDir,
+            normalizedUri,
+            hints
+          );
 
-        const fileHandle = await getFileHandleRecursively(
-          rootDir,
-          normalizedUri,
-          hints
-        );
-
-        if (fileHandle && mounted) {
-          const file = await fileHandle.getFile();
-          const url = URL.createObjectURL(file);
-          setImageUrl(url);
-          setError(false);
-        } else if (mounted) {
-          setError(true);
+          if (fileHandle && mounted) {
+            const file = await fileHandle.getFile();
+            const url = URL.createObjectURL(file);
+            setImageUrl(url);
+            setError(false);
+          } else if (mounted) {
+            setError(true);
+          }
         }
       } catch (err) {
         if (mounted) {
@@ -78,7 +91,7 @@ export default function MediaThumbnail({
         URL.revokeObjectURL(imageUrl);
       }
     };
-  }, [item.uri, item.source, rootDir]);
+  }, [item.uri, item.source, rootDir, archiveMode, folderName]);
 
   if (isAudio) {
     return (

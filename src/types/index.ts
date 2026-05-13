@@ -3,7 +3,8 @@ export type Chat = {
   dirName: string;
   lastSent: number;
   title: string;
-  dirHandle: FileSystemDirectoryHandle;
+  image?: string;
+  dirHandle?: FileSystemDirectoryHandle | null;
 };
 
 export enum MessageType {
@@ -16,24 +17,24 @@ export enum MessageType {
 
 export type Message = (
   | {
-      type: MessageType.Unsubscribe | MessageType.Unsubscribe;
-      users: {
-        name: string;
-      }[];
-    }
+    type: MessageType.Unsubscribe | MessageType.Unsubscribe;
+    users: {
+      name: string;
+    }[];
+  }
   | {
-      type: MessageType.Call;
-      call_duration: number;
-    }
+    type: MessageType.Call;
+    call_duration: number;
+  }
   | {
-      type: MessageType.Share;
-      share?: {
-        link: string;
-      };
-    }
+    type: MessageType.Share;
+    share?: {
+      link: string;
+    };
+  }
   | {
-      type: MessageType.Generic;
-    }
+    type: MessageType.Generic;
+  }
 ) & {
   sender_name: string;
   timestamp_ms: number;
@@ -86,6 +87,10 @@ export type MessageData = {
     name: string;
   }[];
   title: string;
+  image?: {
+    uri: string;
+    creation_timestamp?: number;
+  };
   is_still_participant: boolean;
   // TODO:
   thread_type: string;

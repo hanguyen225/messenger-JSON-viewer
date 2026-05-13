@@ -24,9 +24,13 @@ COPY --from=builder /app/public ./public
 # Expose port
 EXPOSE 3000
 
+# Create archive directory (will be mounted as volume)
+RUN mkdir -p /app/archive
+
 # Set environment
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV ARCHIVE_PATH=/app/archive
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \

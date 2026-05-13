@@ -65,6 +65,53 @@ yarn dev
 
 The server should be running at http://localhost:3000.
 
+## Docker Deployment (Recommended for production)
+
+This application can be easily deployed using Docker. Perfect for running on a Ubuntu server while developing on Windows.
+
+### Quick Start (Local)
+
+```bash
+mkdir archive
+# Copy your messenger archive into ./archive folder
+
+docker-compose up -d
+
+# Access at http://localhost:3000
+```
+
+### Ubuntu Server Deployment
+
+1. **Transfer your messenger archive to the server:**
+
+   ```bash
+   scp -r "C:\path\to\messenger\archive" user@ubuntu-server:/home/user/
+   ```
+
+2. **On the Ubuntu server:**
+
+   ```bash
+   git clone <this-repository> messenger-viewer
+   cd messenger-viewer
+
+   # Edit docker-compose.yml and set the volume path to your archive
+   # volumes:
+   #   - /home/user/messenger-archive:/app/archive
+
+   docker-compose up -d
+   ```
+
+3. **Access from any device:** `http://ubuntu-server-ip:3000`
+
+### Docker Configuration
+
+- **ARCHIVE_PATH**: `/app/archive` (inside container)
+- **Volume Mount**: Maps your local messenger archive to `/app/archive`
+- **Port**: `3000` (customize in `docker-compose.yml`)
+- **Auto-Load**: App automatically detects server availability and loads chats without manual import
+
+See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for complete deployment guide and [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md) for quick reference.
+
 ## TODOs
 
 If they should be done, then they will be done.
@@ -83,7 +130,7 @@ If they should be done, then they will be done.
 - Info Panel
   - Statistic
     - [x] message count (from both side)
-  
+
 ## Previous works
 
 - <https://github.com/simonwongwong/Facebook-Messenger-JSON-viewer>

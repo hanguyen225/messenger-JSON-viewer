@@ -4,12 +4,16 @@ import { getSubDirs, readAutofillInformation, readMessageJSON } from './file';
 
 import { Chat, Message, MessageData } from '@/types';
 
-const decoder = new TextDecoder('utf-8');
-
 export function decodeString(str: string) {
-  return decoder.decode(
-    new Uint8Array(str.split('').map((s) => s.charCodeAt(0)))
+  if (!str) {
+    return str;
+  }
+
+  const decoded = new TextDecoder('utf-8').decode(
+    new Uint8Array(str.split('').map((s) => s.charCodeAt(0) & 0xff))
   );
+
+  return decoded.includes('�') ? str : decoded;
 }
 
 export async function getMyselfName(
@@ -54,6 +58,7 @@ export async function loadChats(
           dirName: dir.name,
           lastSent,
           title: decodeString(message.title),
+          image: message.image?.uri,
           dirHandle: dir,
         } as Chat;
       } else {
@@ -63,7 +68,11 @@ export async function loadChats(
   ).then((chats) => chats.filter(Boolean)) as Promise<Chat[]>;
 }
 
-export function useCurrentMessage(folderName: string | null) {
+export function setChatCache(dirName: string, messageJSON: string) {
+  chatCache.set(dirName, messageJSON);
+}
+
+export function useCurrentMessage(folderName: string | null, refreshToken = 0) {
   return useMemo<MessageData | null>(() => {
     if (!folderName) {
       return null;
@@ -74,7 +83,7 @@ export function useCurrentMessage(folderName: string | null) {
     } else {
       return null;
     }
-  }, [folderName]);
+  }, [folderName, refreshToken]);
 }
 
 // Group message by consecutive sender name

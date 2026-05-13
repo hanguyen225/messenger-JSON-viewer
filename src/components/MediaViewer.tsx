@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getFileHandleRecursively } from '@/lib/utils/file';
+import { useArchiveMode } from '@/lib/context/ArchiveContext';
+import { getServerFile, normalizeArchivePath } from '@/lib/utils/serverFile';
 import { MediaItemWithTimestamp } from '@/lib/utils/message';
 import {
   ChevronLeftIcon,
@@ -27,23 +29,22 @@ const ATTACHMENT_FOLDER_HINTS: Record<string, string[]> = {
   ],
 };
 
-function normalizeAttachmentPath(uri: string) {
-  return uri.replace(/^messages[\\/]/, '').replace(/\\/g, '/');
-}
-
 export default function MediaViewer({
   mediaItems,
   initialIndex,
   rootDir,
   onClose,
   onJumpToMessage,
+  folderName,
 }: {
   mediaItems: MediaItemWithTimestamp[];
   initialIndex: number;
-  rootDir: FileSystemDirectoryHandle;
+  rootDir?: FileSystemDirectoryHandle;
   onClose: () => void;
   onJumpToMessage?: (item: MediaItemWithTimestamp) => void;
+  folderName?: string;
 }) {
+  const { mode: archiveMode } = useArchiveMode();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,6 +53,7 @@ export default function MediaViewer({
   const currentItem = mediaItems[currentIndex];
   const isVideo = ['videos'].includes(currentItem.source);
   const isAudio = ['audio', 'audio_files'].includes(currentItem.source);
+  const normalizedUri = normalizeArchivePath(currentItem.uri);
 
   useEffect(() => {
     setLoading(true);
@@ -59,19 +61,28 @@ export default function MediaViewer({
 
     const loadMedia = async () => {
       try {
-        const normalizedUri = normalizeAttachmentPath(currentItem.uri);
-        const hints = ATTACHMENT_FOLDER_HINTS[currentItem.source] || [];
+        if (archiveMode === 'server' && folderName) {
+          // Load from server
+          const blob = await getServerFile(folderName, normalizedUri);
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            setMediaUrl(url);
+          }
+        } else if (rootDir) {
+          // Load from local filesystem
+          const hints = ATTACHMENT_FOLDER_HINTS[currentItem.source] || [];
 
-        const fileHandle = await getFileHandleRecursively(
-          rootDir,
-          normalizedUri,
-          hints
-        );
+          const fileHandle = await getFileHandleRecursively(
+            rootDir,
+            normalizedUri,
+            hints
+          );
 
-        if (fileHandle) {
-          const file = await fileHandle.getFile();
-          const url = URL.createObjectURL(file);
-          setMediaUrl(url);
+          if (fileHandle) {
+            const file = await fileHandle.getFile();
+            const url = URL.createObjectURL(file);
+            setMediaUrl(url);
+          }
         }
       } catch (err) {
         console.error('Failed to load media:', err);
@@ -87,7 +98,7 @@ export default function MediaViewer({
         URL.revokeObjectURL(mediaUrl);
       }
     };
-  }, [currentItem, rootDir]);
+  }, [currentItem, rootDir, archiveMode, folderName]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

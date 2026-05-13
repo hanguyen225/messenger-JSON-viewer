@@ -12,93 +12,93 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useSWR from 'swr';
 
+import { useArchiveMode } from '@/lib/context/ArchiveContext';
 import useTheme from '@/lib/hooks/useTheme';
+
 import useThemeColor from '@/lib/hooks/useThemeColor';
 import useToggle from '@/lib/hooks/useToggle';
 import useWindowOverlay from '@/lib/hooks/useWindowOverlay';
-import { findInboxFolder } from '@/lib/utils/file';
 import {
   decodeString,
   getMyselfName,
   loadChats,
+  setChatCache,
   useAllMediaItems,
   useChatStatistics,
   useCurrentMessage,
   useGroupedMessages,
 } from '@/lib/utils/message';
+import { getServerChats, getServerMessageJSON } from '@/lib/utils/serverFile';
 
 import Collapsible from '@/components/Collapsible';
+import FsImage from '@/components/FsImage';
 import MediaThumbnail from '@/components/MediaThumbnail';
 import MediaViewer from '@/components/MediaViewer';
 import MessageComponent from '@/components/Message';
-import OnboardingCarousel from '@/components/OnboardingCarousel';
 import SearchInput from '@/components/SearchInput';
 
-function StartScreen({ openDirPicker }: { openDirPicker: () => void }) {
-  const contents = [
-    <div
-      key='step-1'
-      className='flex w-full flex-col items-center justify-center'
-    >
-      <img src='/ios/100.png' alt='logo' width={100} height={100} />
-      <h1 className='text-center text-2xl font-bold'>
-        Welcome to Facebook Messenger exported JSON viewer
-      </h1>
-      <p className='mt-5'>Click next to continue</p>
-    </div>,
-    <div
-      key='step-2'
-      className='flex w-full flex-col items-center justify-center'
-    >
-      <img
-        src='/images/step1.png'
-        className='mb-5 w-full max-w-5xl'
-        alt='step-1'
-      />
-      <h2 className='text-center text-xl font-bold'>
-        Step 1: Export the messenger data as JSON from Facebook. Go to{' '}
-        <a
-          href='https://www.facebook.com/dyi'
-          target='_blank'
-          rel='noreferrer'
-          className='underline'
-        >
-          Download Your Information
-        </a>{' '}
-        page.
-      </h2>
-    </div>,
-    <div
-      key='step-3'
-      className='flex w-full flex-col items-center justify-center'
-    >
-      <img
-        src='/images/step2.png'
-        className='mb-5 w-full max-w-5xl'
-        alt='step-2'
-      />
-      <h2 className='text-center text-xl font-bold'>
-        Step 2: Make sure your folder looks like this.
-      </h2>
-    </div>,
-    <div key='step-3'>
-      <button
-        className='rounded px-4 py-2 ring-1 hover:bg-blue-500 hover:text-white'
-        onClick={openDirPicker}
-      >
-        Open Folder
-      </button>
-    </div>,
-  ];
+const scrollPositionStore = new Map();
 
+function LoadingBar({ className = '' }: { className?: string }) {
   return (
-    <OnboardingCarousel className='flex h-full flex-col items-center justify-center overflow-hidden'>
-      {contents}
-    </OnboardingCarousel>
+    <div className={cx('overflow-hidden rounded-full bg-blue-500/20', className)}>
+      <div className='loading-bar-indeterminate h-full w-1/3 rounded-full bg-blue-500' />
+    </div>
   );
 }
 
-const scrollPositionStore = new Map();
+function ChatAvatar({
+  chat,
+  sizeClass,
+  fallbackTextClassName,
+}: {
+  chat: {
+    dirName: string;
+    title: string;
+    image?: string;
+    dirHandle?: FileSystemDirectoryHandle | null;
+  };
+  sizeClass: string;
+  fallbackTextClassName?: string;
+}) {
+  const title = decodeString(chat.title);
+
+  if (chat.image) {
+    return (
+      <div
+        className={cx(
+          'relative overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700',
+          sizeClass
+        )}
+      >
+        <FsImage
+          path={chat.image}
+          root={chat.dirHandle ?? undefined}
+          folderName={chat.dirName}
+          alt={title}
+          className='h-full w-full object-cover'
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cx(
+        'flex select-none items-center justify-center rounded-full text-white',
+        sizeClass
+      )}
+      style={{
+        backgroundColor: randomColor({
+          luminosity: 'dark',
+          seed: chat.dirName,
+        }),
+      }}
+    >
+      <span className={fallbackTextClassName}>{title[0]}</span>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(
@@ -118,11 +118,14 @@ export default function HomePage() {
     null
   );
   const [mediaTabIndex, setMediaTabIndex] = useState(0);
+  const [messageCacheVersion, setMessageCacheVersion] = useState(0);
+
+  const { mode: archiveMode, isLoading: archiveLoading } = useArchiveMode();
 
   const [folderName, setFolderName] = useState<string | null>(null);
   const [messageSearch, setMessageSearch] = useState('');
   const [messageSearchIndex, setMessageSearchIndex] = useState(0);
-  const currentMessage = useCurrentMessage(folderName);
+  const currentMessage = useCurrentMessage(folderName, messageCacheVersion);
   const groupedMessages = useGroupedMessages(currentMessage);
   const chatStatistic = useChatStatistics(currentMessage);
   const mediaItems = useAllMediaItems(currentMessage);
@@ -138,7 +141,7 @@ export default function HomePage() {
 
   const messageGroupRef = useRef<VirtuosoHandle>(null);
   const [visibleStart, setVisibleStart] = useState(0);
-  const VISIBLE_CHUNK = 10000;
+  const VISIBLE_CHUNK = Number.MAX_SAFE_INTEGER;
 
   useEffect(() => {
     // Reset search when changing chats
@@ -163,6 +166,20 @@ export default function HomePage() {
     });
   }, [folderName, groupedMessages]);
 
+  // Load message JSON from server when in server mode
+  useEffect(() => {
+    if (archiveMode === 'server' && folderName) {
+      const loadServerMessages = async () => {
+        const messageJSON = await getServerMessageJSON(folderName);
+        if (messageJSON) {
+          setChatCache(folderName, messageJSON);
+          setMessageCacheVersion((version) => version + 1);
+        }
+      };
+      loadServerMessages();
+    }
+  }, [archiveMode, folderName]);
+
   const { dark, toggleTheme, theme } = useTheme();
   const [showAllCounts, setShowAllCounts] = useState(false);
   useThemeColor({
@@ -170,16 +187,43 @@ export default function HomePage() {
     light: '#ffffff',
   });
 
+  // Load chats based on mode
   const { data } = useSWR(
-    () => inboxDir?.name && ['chats', inboxDir?.name],
-    () => loadChats(inboxDir)
+    () => {
+      if (archiveMode === 'server') {
+        return 'chats-server';
+      }
+      return inboxDir?.name && ['chats', inboxDir?.name];
+    },
+    async () => {
+      if (archiveMode === 'server') {
+        // Load from server API
+        const chats = await getServerChats();
+        if (chats) {
+          return chats.map((chat) => ({
+            ...chat,
+            name: chat.title,
+            lastSent: chat.lastSent,
+            dirName: chat.dirName,
+            image: chat.image,
+            dirHandle: null,
+          }));
+        }
+        return [];
+      } else {
+        // Load from local file system
+        return inboxDir ? loadChats(inboxDir) : [];
+      }
+    }
   );
   const { data: myName = null } = useSWR(
-    () => (directory ? 'myName' : false),
+    () => (archiveMode === 'local' && directory ? 'myName' : false),
     () => {
       return getMyselfName(directory!);
     }
   );
+
+  const chatTitle = archiveMode === 'server' ? 'Messenger archive' : myName;
 
   const chats = useMemo(() => {
     if (!data || data.length === 0) {
@@ -188,7 +232,10 @@ export default function HomePage() {
 
     return data
       .sort((a, b) => b.lastSent - a.lastSent)
-      .filter((c) => c.title.includes(search) || c.dirName.includes(search));
+      .filter(
+        (c) =>
+          decodeString(c.title).includes(search) || c.dirName.includes(search)
+      );
   }, [data, search]);
 
   const selectedChat = useMemo(() => {
@@ -383,26 +430,67 @@ export default function HomePage() {
     displayGroups,
   ]);
 
-  const openDirPicker = async () => {
-    try {
-      const directoryHandle = await window.showDirectoryPicker();
+  const serverChats = data ?? [];
+  const isBootLoading = archiveLoading || (archiveMode === 'server' && !data);
 
-      const inbox = await findInboxFolder(directoryHandle);
+  // Show loading screen while detecting archive mode or loading server data.
+  if (isBootLoading) {
+    return (
+      <div className='relative flex h-full w-full items-center justify-center'>
+        <LoadingBar className='absolute top-0 left-0 h-1 w-full rounded-none' />
+        <div className='flex w-full max-w-sm flex-col items-center gap-4 px-6'>
+          <LoadingBar className='h-1 w-40' />
+        </div>
+      </div>
+    );
+  }
 
-      if (inbox) {
-        setInboxDir(inbox);
-        setDirectory(directoryHandle);
-      } else {
-        window.alert('This is not a valid Messenger archive folder.');
-      }
-      // eslint-disable-next-line no-empty
-    } catch {}
-  };
+  if (archiveMode === 'server' && !data) {
+    return (
+      <div className='flex h-full w-full items-center justify-center'>
+        <div className='text-center'>
+          <div className='mb-4 text-lg font-semibold'>
+            Loading mounted archive...
+          </div>
+          <div className='animate-spin'>↻</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (archiveMode === 'server' && serverChats.length === 0) {
+    return (
+      <div className='flex h-full w-full items-center justify-center px-6 text-center'>
+        <div>
+          <div className='mb-2 text-lg font-semibold'>
+            No chats found in the mounted archive.
+          </div>
+          <div className='text-sm text-gray-500 dark:text-gray-400'>
+            Check that /home/admh3/ffs/messages contains a Messenger export
+            with an inbox folder.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!data || data.length === 0) {
-    return <StartScreen openDirPicker={openDirPicker} />;
-  } else {
     return (
+      <div className='flex h-full w-full items-center justify-center px-6 text-center'>
+        <div>
+          <div className='mb-2 text-lg font-semibold'>
+            No archive loaded yet.
+          </div>
+          <div className='text-sm text-gray-500 dark:text-gray-400'>
+            In Docker, make sure /home/admh3/ffs/messages is mounted and
+            contains a Messenger export with an inbox folder.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
       <div
         className='flex h-full flex-col lg:flex-row'
         style={{
@@ -462,7 +550,7 @@ export default function HomePage() {
           >
             <div className='flex w-full items-center justify-between'>
               <h3 className='select-none text-lg font-semibold'>
-                {myName}&#39;s chat history
+                {chatTitle ? `${chatTitle}'s chat history` : 'Chat history'}
               </h3>
 
               <div className='flex gap-2'>
@@ -529,23 +617,15 @@ export default function HomePage() {
                         }
                       }}
                     >
-                      <div
-                        className='flex h-9 w-9 select-none items-center justify-center rounded-full text-xl text-white'
-                        style={{
-                          minWidth: '2.25rem',
-                          minHeight: '2.25rem',
-                          backgroundColor: randomColor({
-                            luminosity: 'dark',
-                            seed: chat.dirName,
-                          }),
-                        }}
-                      >
-                        {chat.title[0]}
-                      </div>
+                      <ChatAvatar
+                        chat={chat}
+                        sizeClass='h-9 w-9 flex-none'
+                        fallbackTextClassName='text-xl'
+                      />
 
                       <div className='flex max-w-full flex-col'>
                         <span className='mb-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap'>
-                          {chat.title}
+                          {decodeString(chat.title)}
                         </span>
                         <small className='max-w-full overflow-hidden text-ellipsis text-gray-400'>
                           {chat.dirName}
@@ -587,6 +667,14 @@ export default function HomePage() {
             </button>
 
             <div className='flex flex-1 items-center gap-2'>
+              {selectedChat && (
+                <ChatAvatar
+                  chat={selectedChat}
+                  sizeClass='h-10 w-10 flex-none'
+                  fallbackTextClassName='text-sm'
+                />
+              )}
+
               <h3 className='select-none truncate text-lg font-semibold'>
                 {currentMessage
                   ? decodeString(currentMessage.title)
@@ -610,6 +698,7 @@ export default function HomePage() {
                 onClick={() => {
                   try {
                     toggleInfoPanel();
+                    // eslint-disable-next-line no-empty
                   } catch {}
                 }}
                 title='Info'
@@ -844,7 +933,7 @@ export default function HomePage() {
 
                         return (
                           <MessageComponent
-                            rootDir={selectedChat?.dirHandle ?? directory!}
+                            rootDir={selectedChat?.dirHandle ?? directory ?? undefined}
                             message={message}
                             key={`message_${message.sender_name}_${absoluteGroupIndex}_${i}`}
                             isFirst={isFirst}
@@ -853,6 +942,7 @@ export default function HomePage() {
                             highlightQuery={
                               messageSearch.trim() ? messageSearch : undefined
                             }
+                            folderName={folderName ?? undefined}
                           />
                         );
                       })}
@@ -1124,17 +1214,18 @@ export default function HomePage() {
                               item.source
                             );
 
-                            if (selectedChat?.dirHandle) {
+                            if (selectedChat?.dirHandle || folderName) {
                               return (
                                 <MediaThumbnail
                                   key={`${item.timestamp_ms}_${globalIdx}`}
                                   item={item}
-                                  rootDir={selectedChat.dirHandle}
+                                  rootDir={selectedChat?.dirHandle ?? undefined}
                                   isVideo={isVideo}
                                   isAudio={isAudio}
                                   onClick={() =>
                                     setSelectedMediaIndex(globalIdx)
                                   }
+                                  folderName={folderName ?? undefined}
                                 />
                               );
                             }
@@ -1167,9 +1258,9 @@ export default function HomePage() {
               rootDir={selectedChat.dirHandle}
               onClose={() => setSelectedMediaIndex(null)}
               onJumpToMessage={jumpToMediaMessage}
+              folderName={folderName ?? undefined}
             />
           )}
       </div>
     );
-  }
 }

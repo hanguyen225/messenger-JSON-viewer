@@ -5,7 +5,9 @@ import { SRLWrapper } from 'simple-react-lightbox';
 import useSWR from 'swr';
 
 import useToggle from '@/lib/hooks/useToggle';
+import { useArchiveMode } from '@/lib/context/ArchiveContext';
 import { getFileHandleRecursively } from '@/lib/utils/file';
+import { getServerFile, normalizeArchivePath } from '@/lib/utils/serverFile';
 import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 
 import FsImage from './FsImage';
@@ -50,10 +52,6 @@ const ATTACHMENT_FOLDER_HINTS: Record<MediaSource, string[]> = {
     'gifs',
   ],
 };
-
-function normalizeAttachmentPath(uri: string) {
-  return uri.replace(/^messages[\\/]/, '').replace(/\\/g, '/');
-}
 
 function getMediaKind(uri: string, source: MediaSource) {
   if (source === 'files') {
@@ -149,7 +147,6 @@ function BaseMessage({
   className?: string;
   transparentBG?: boolean;
 }) {
-  const [isPopoverOpen, setPopoverOpen, togglePopover] = useToggle(false);
   const groupedActions = useGroupedActorsByReaction(message);
 
   return (
@@ -158,52 +155,37 @@ function BaseMessage({
         'justify-end': isMe,
       })}
     >
-      <Popover
-        isOpen={isPopoverOpen}
-        positions={['left']}
-        padding={10}
-        content={() => (
-          <div className='rounded bg-gray-600 py-0.5 px-1 text-white'>
-            {new Date(message.timestamp_ms).toLocaleString()}
+      <div
+        className={cx(
+          'relative whitespace-pre-wrap rounded-2xl px-4 py-2',
+          {
+            'rounded-r-md text-white': isMe,
+            'bg-blue-400 dark:bg-blue-700': isMe && !transparentBG,
+            'rounded-l-md dark:bg-slate-800': !isMe,
+            'bg-gray-200': !isMe && !transparentBG,
+            'rounded-tl-2xl': isFirst && !isMe,
+            'rounded-bl-2xl': isLast && !isMe,
+            'rounded-tr-2xl': isFirst && isMe,
+            'rounded-br-2xl': isLast && isMe,
+            'bg-transparent dark:bg-transparent': transparentBG,
+          },
+          className
+        )}
+      >
+        {children}
+
+        <div className='mt-1 text-right text-[10px] leading-none opacity-70'>
+          {new Date(message.timestamp_ms).toLocaleString()}
+        </div>
+
+        {groupedActions && (
+          <div className='absolute right-2 -bottom-5 select-none rounded-2xl bg-white px-2 py-0.5 shadow dark:bg-slate-800'>
+            {Object.entries(groupedActions).map(([reaction, actors]) => (
+              <ReactionButton key={reaction} reaction={reaction} actors={actors} />
+            ))}
           </div>
         )}
-        onClickOutside={() => setPopoverOpen(false)}
-      >
-        <div
-          className={cx(
-            'relative whitespace-pre-wrap rounded-2xl px-4 py-2',
-            {
-              'rounded-r-md  text-white ': isMe,
-              'bg-blue-400 dark:bg-blue-700': isMe && !transparentBG,
-              'rounded-l-md dark:bg-slate-800': !isMe,
-              'bg-gray-200': !isMe && !transparentBG,
-              'rounded-tl-2xl': isFirst && !isMe,
-              'rounded-bl-2xl': isLast && !isMe,
-              'rounded-tr-2xl': isFirst && isMe,
-              'rounded-br-2xl': isLast && isMe,
-              'bg-transparent dark:bg-transparent': transparentBG,
-            },
-            className
-          )}
-          onClick={() => {
-            togglePopover();
-          }}
-        >
-          {children}
-
-          {groupedActions && (
-            <div className='absolute right-2 -bottom-5 select-none rounded-2xl bg-white px-2 py-0.5 shadow dark:bg-slate-800'>
-              {Object.entries(groupedActions).map(([reaction, actors]) => (
-                <ReactionButton
-                  key={reaction}
-                  reaction={reaction}
-                  actors={actors}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </Popover>
+      </div>
     </div>
   );
 }
@@ -215,13 +197,15 @@ export default function MessageComponent({
   isMe,
   rootDir,
   highlightQuery,
+  folderName,
 }: {
   message: Message;
   isFirst: boolean;
   isLast: boolean;
   isMe: boolean;
-  rootDir: FileSystemDirectoryHandle;
+  rootDir?: FileSystemDirectoryHandle;
   highlightQuery?: string;
+  folderName?: string;
 }) {
   function renderHighlighted(text: string) {
     if (!highlightQuery) return text;
@@ -247,6 +231,8 @@ export default function MessageComponent({
   const content = decodeString(message.content || '');
   const messageType = message.type ?? MessageType.Generic;
   const mediaItems = getMessageMediaItems(message);
+  const { mode: archiveMode } = useArchiveMode();
+
   const { data: imageURIs } = useSWR(
     () => (mediaItems.length ? `/message/media/${message.timestamp_ms}` : null),
     async () => {
@@ -256,22 +242,40 @@ export default function MessageComponent({
 
       const images = await Promise.all(
         mediaItems.map(async (mediaItem) => {
-          const uri = normalizeAttachmentPath(mediaItem.uri);
-          const fileHandle = await getFileHandleRecursively(
-            rootDir,
-            uri,
-            ATTACHMENT_FOLDER_HINTS[mediaItem.source]
-          );
-          if (!fileHandle) {
-            return null;
+          const uri = normalizeArchivePath(mediaItem.uri);
+          try {
+            if (archiveMode === 'server' && folderName) {
+              // Load from server
+              const blob = await getServerFile(folderName, uri);
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                return {
+                  src: url,
+                  kind: getMediaKind(mediaItem.uri, mediaItem.source),
+                  key: uri,
+                } as ResolvedMediaItem;
+              }
+            } else if (rootDir) {
+              // Load from local filesystem
+              const fileHandle = await getFileHandleRecursively(
+                rootDir,
+                uri,
+                ATTACHMENT_FOLDER_HINTS[mediaItem.source]
+              );
+              if (fileHandle) {
+                const file = await fileHandle.getFile();
+                const url = URL.createObjectURL(file);
+                return {
+                  src: url,
+                  kind: getMediaKind(mediaItem.uri, mediaItem.source),
+                  key: uri,
+                } as ResolvedMediaItem;
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to load media ${uri}:`, err);
           }
-          const file = await fileHandle.getFile();
-          const url = URL.createObjectURL(file);
-          return {
-            src: url,
-            kind: getMediaKind(mediaItem.uri, mediaItem.source),
-            key: uri,
-          } as ResolvedMediaItem;
+          return null;
         })
       );
 
@@ -358,7 +362,8 @@ export default function MessageComponent({
       >
         <FsImage
           root={rootDir}
-          path={normalizeAttachmentPath(message.sticker.uri)}
+          path={normalizeArchivePath(message.sticker.uri)}
+          folderName={folderName}
         />
       </BaseMessage>
     );

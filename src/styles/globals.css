@@ -7,3 +7,17 @@ body,
 #__next {
   @apply h-full w-full;
 }
+
+@keyframes loading-bar-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(360%);
+  }
+}
+
+.loading-bar-indeterminate {
+  animation: loading-bar-slide 1.2s linear infinite;
+}
