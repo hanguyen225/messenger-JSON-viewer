@@ -620,6 +620,37 @@ export default function HomePage() {
               <button
                 className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
                 onClick={() => {
+                  if (!currentMessage || groupedMessages.length === 0) return;
+                  setVisibleStart(0);
+                  messageGroupRef.current?.scrollToIndex({
+                    index: 0,
+                    align: 'start',
+                  });
+                }}
+                title='Jump to first message'
+              >
+                ↑ First
+              </button>
+
+              <button
+                className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
+                onClick={() => {
+                  if (!currentMessage || groupedMessages.length === 0) return;
+                  const start = Math.max(0, groupedMessages.length - VISIBLE_CHUNK);
+                  setVisibleStart(start);
+                  messageGroupRef.current?.scrollToIndex({
+                    index: groupedMessages.length - start - 1,
+                    align: 'end',
+                  });
+                }}
+                title='Jump to latest message'
+              >
+                Latest ↓
+              </button>
+
+              <button
+                className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
+                onClick={() => {
                   if (!currentMessage) return;
 
                   const input = window.prompt(
@@ -662,7 +693,7 @@ export default function HomePage() {
                 }}
                 title='Jump to date'
               >
-                Jump
+                📅 Date
               </button>
             </div>
           </div>
