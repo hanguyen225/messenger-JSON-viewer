@@ -1,8 +1,10 @@
 import {
   InformationCircleIcon,
+  MenuIcon,
   MoonIcon,
   RefreshIcon,
   SunIcon,
+  XIcon,
 } from '@heroicons/react/outline';
 import cx from 'clsx';
 import randomColor from 'randomcolor';
@@ -106,6 +108,7 @@ export default function HomePage() {
     null
   );
   const [search, setSearch] = useState('');
+  const [sidebarOpen, , toggleSidebar] = useToggle(false);
   const [infoPanelOpen, , toggleInfoPanel] = useToggle(false);
   const [chatMembersInfoExpanded, , toggleChatMembersInfo] = useToggle(false);
   const [messageCountExpanded, , toggleMessageCount] = useToggle(false);
@@ -401,7 +404,7 @@ export default function HomePage() {
   } else {
     return (
       <div
-        className='flex h-full'
+        className='flex h-full flex-col lg:flex-row'
         style={{
           paddingTop: windowControlsOverlayRect?.height ?? 0,
         }}
@@ -437,8 +440,17 @@ export default function HomePage() {
 
         {/* Sidebar */}
         <div
-          className='flex h-full max-h-full w-full flex-col border-r border-solid dark:border-gray-600'
-          style={{ maxWidth: 350 }}
+          className={cx(
+            'fixed left-0 top-0 z-40 h-full w-full overflow-hidden border-r border-solid bg-white dark:border-gray-600 dark:bg-gray-900 lg:static lg:w-auto lg:max-w-[350px]',
+            {
+              'max-w-[350px]': sidebarOpen,
+              'hidden lg:flex': !sidebarOpen,
+            },
+            'flex h-full max-h-full flex-col'
+          )}
+          style={{
+            maxWidth: sidebarOpen ? 350 : 0,
+          }}
         >
           <div
             className={cx(
@@ -512,6 +524,9 @@ export default function HomePage() {
                       )}
                       onClick={() => {
                         setFolderName(chat.dirName);
+                        if (sidebarOpen) {
+                          toggleSidebar();
+                        }
                       }}
                     >
                       <div
@@ -562,8 +577,17 @@ export default function HomePage() {
               }
             )}
           >
+            {/* Hamburger menu for mobile */}
+            <button
+              onClick={toggleSidebar}
+              className='rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-600 lg:hidden'
+              title='Toggle sidebar'
+            >
+              {sidebarOpen ? <XIcon width={20} /> : <MenuIcon width={20} />}
+            </button>
+
             <div className='flex flex-1 items-center gap-2'>
-              <h3 className='select-none text-lg font-semibold'>
+              <h3 className='select-none truncate text-lg font-semibold'>
                 {currentMessage
                   ? decodeString(currentMessage.title)
                   : 'Please select chat to view'}
@@ -808,156 +832,126 @@ export default function HomePage() {
 
         {/* Info Panel */}
         {infoPanelOpen && currentMessage && (
-          <div
-            className={cx(
-              'flex h-full w-full flex-col overflow-y-auto border-l py-4 px-4 dark:border-gray-600',
-              {
-                'border-t': windowControlsOverlayEnable,
-              }
-            )}
-            style={{ maxWidth: 350 }}
-          >
-            <h3 className='mb-4 select-none text-center text-lg font-semibold'>
-              {decodeString(currentMessage.title)}
-            </h3>
-
-            <Collapsible
-              title='Chat Members'
-              containerClassName='flex flex-col gap-4 py-4 px-5'
-              isExpanded={chatMembersInfoExpanded}
-              onToggle={toggleChatMembersInfo}
+          <>
+            {/* Mobile overlay */}
+            <div
+              className='fixed inset-0 z-30 bg-black/50 lg:hidden'
+              onClick={toggleInfoPanel}
+            />
+            {/* Panel */}
+            <div
+              className={cx(
+                'lg:max-h-none fixed bottom-0 left-0 right-0 z-40 flex max-h-[80vh] flex-col overflow-y-auto rounded-t-lg border-t bg-white py-4 px-4 dark:border-gray-600 dark:bg-gray-900 lg:static lg:h-full lg:w-auto lg:rounded-none lg:rounded-t-none lg:border-l lg:border-t-0',
+                {
+                  'border-t': windowControlsOverlayEnable,
+                }
+              )}
+              style={{ maxWidth: sidebarOpen ? 350 : 350 }}
             >
-              {currentMessage.participants.map((part) => {
-                const color = randomColor({
-                  seed: part.name,
-                  luminosity: theme,
-                });
+              <div className='mb-4 flex items-center justify-between'>
+                <h3 className='flex-1 select-none text-center text-lg font-semibold'>
+                  {decodeString(currentMessage.title)}
+                </h3>
+                <button
+                  onClick={toggleInfoPanel}
+                  className='rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700 lg:hidden'
+                  title='Close'
+                >
+                  <XIcon width={20} />
+                </button>
+              </div>
 
-                return (
-                  <div className='flex gap-2' key={part.name}>
-                    <div
-                      style={{
-                        backgroundColor: color,
-                      }}
-                      className='h-6 w-6 rounded-full'
-                    />
-
-                    <span className='text-base'>{decodeString(part.name)}</span>
-                  </div>
-                );
-              })}
-            </Collapsible>
-
-            {chatStatistic && (
               <Collapsible
-                title='Chat Information'
+                title='Chat Members'
                 containerClassName='flex flex-col gap-4 py-4 px-5'
-                isExpanded={chatInfoExpanded}
-                onToggle={toggleChatInfo}
+                isExpanded={chatMembersInfoExpanded}
+                onToggle={toggleChatMembersInfo}
               >
-                <div className='flex justify-between'>
-                  <span className='text-base font-medium'>Messages Count</span>
+                {currentMessage.participants.map((part) => {
+                  const color = randomColor({
+                    seed: part.name,
+                    luminosity: theme,
+                  });
 
-                  <span className='text-right text-base text-gray-500'>
-                    {currentMessage.messages.length}
-                  </span>
-                </div>
-
-                <div className='flex justify-between'>
-                  <span className='text-base font-medium'>Members Count</span>
-
-                  <span className='text-base text-gray-500'>
-                    {currentMessage.participants.length}
-                  </span>
-                </div>
-
-                <div className='flex justify-between'>
-                  <span className='text-base font-medium'>Created At</span>
-
-                  <span className='text-right text-base text-gray-500'>
-                    {new Date(chatStatistic.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              </Collapsible>
-            )}
-
-            {chatStatistic && (
-              <Collapsible
-                title='Messages Count'
-                isExpanded={messageCountExpanded}
-                onToggle={toggleMessageCount}
-                containerClassName='flex flex-col gap-4 py-4 px-5'
-              >
-                {(() => {
-                  const sortedEntries = Object.entries(
-                    chatStatistic.countInfo
-                  ).sort(([, aCount], [, bCount]) => bCount - aCount);
-                  const TOP_N = 200;
-
-                  if (!showAllCounts) {
-                    return (
-                      <>
-                        {sortedEntries
-                          .slice(0, TOP_N)
-                          .map(([senderName, count]) => (
-                            <div
-                              key={senderName}
-                              className='flex justify-between'
-                            >
-                              <span className='text-base'>
-                                {decodeString(senderName)}
-                              </span>
-
-                              <span className='ml-2 text-base text-gray-500'>
-                                (
-                                {(
-                                  (count / currentMessage.messages.length) *
-                                  100
-                                ).toFixed(1)}
-                                % ) {count}
-                              </span>
-                            </div>
-                          ))}
-
-                        {sortedEntries.length > TOP_N && (
-                          <div className='flex justify-center'>
-                            <button
-                              className='rounded px-3 py-1 ring-1'
-                              onClick={() => setShowAllCounts(true)}
-                            >
-                              Show all ({sortedEntries.length})
-                            </button>
-                          </div>
-                        )}
-
-                        <div className='flex justify-between'>
-                          <span className='text-base font-medium'>Total</span>
-
-                          <span className='ml-2 text-base text-gray-500'>
-                            {currentMessage.messages.length}
-                          </span>
-                        </div>
-                      </>
-                    );
-                  }
-
-                  // showAllCounts -> render virtualized list
-                  const entriesArray = sortedEntries;
                   return (
-                    <>
-                      <div className='h-64'>
-                        <Virtuoso
-                          totalCount={entriesArray.length}
-                          itemContent={(idx) => {
-                            const [senderName, count] = entriesArray[idx];
-                            return (
+                    <div className='flex gap-2' key={part.name}>
+                      <div
+                        style={{
+                          backgroundColor: color,
+                        }}
+                        className='h-6 w-6 rounded-full'
+                      />
+
+                      <span className='text-base'>
+                        {decodeString(part.name)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </Collapsible>
+
+              {chatStatistic && (
+                <Collapsible
+                  title='Chat Information'
+                  containerClassName='flex flex-col gap-4 py-4 px-5'
+                  isExpanded={chatInfoExpanded}
+                  onToggle={toggleChatInfo}
+                >
+                  <div className='flex justify-between'>
+                    <span className='text-base font-medium'>
+                      Messages Count
+                    </span>
+
+                    <span className='text-right text-base text-gray-500'>
+                      {currentMessage.messages.length}
+                    </span>
+                  </div>
+
+                  <div className='flex justify-between'>
+                    <span className='text-base font-medium'>Members Count</span>
+
+                    <span className='text-base text-gray-500'>
+                      {currentMessage.participants.length}
+                    </span>
+                  </div>
+
+                  <div className='flex justify-between'>
+                    <span className='text-base font-medium'>Created At</span>
+
+                    <span className='text-right text-base text-gray-500'>
+                      {new Date(chatStatistic.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                </Collapsible>
+              )}
+
+              {chatStatistic && (
+                <Collapsible
+                  title='Messages Count'
+                  isExpanded={messageCountExpanded}
+                  onToggle={toggleMessageCount}
+                  containerClassName='flex flex-col gap-4 py-4 px-5'
+                >
+                  {(() => {
+                    const sortedEntries = Object.entries(
+                      chatStatistic.countInfo
+                    ).sort(([, aCount], [, bCount]) => bCount - aCount);
+                    const TOP_N = 200;
+
+                    if (!showAllCounts) {
+                      return (
+                        <>
+                          {sortedEntries
+                            .slice(0, TOP_N)
+                            .map(([senderName, count]) => (
                               <div
-                                className='flex justify-between px-2'
                                 key={senderName}
+                                className='flex justify-between'
                               >
                                 <span className='text-base'>
                                   {decodeString(senderName)}
                                 </span>
+
                                 <span className='ml-2 text-base text-gray-500'>
                                   (
                                   {(
@@ -967,111 +961,166 @@ export default function HomePage() {
                                   % ) {count}
                                 </span>
                               </div>
-                            );
-                          }}
-                        />
-                      </div>
+                            ))}
 
-                      <div className='mt-2 flex justify-center'>
-                        <button
-                          className='rounded px-3 py-1 ring-1'
-                          onClick={() => setShowAllCounts(false)}
-                        >
-                          Collapse
-                        </button>
-                      </div>
-                    </>
-                  );
-                })()}
-              </Collapsible>
-            )}
-
-            {mediaItems && mediaItems.length > 0 && (
-              <Collapsible
-                title={`📷 Media (${mediaItems.length})`}
-                isExpanded={mediaExpanded}
-                onToggle={toggleMedia}
-                containerClassName='flex flex-col gap-4 py-4 px-5'
-              >
-                {/* Tabs */}
-                {(() => {
-                  const ITEMS_PER_TAB = 300;
-                  const totalTabs = Math.ceil(
-                    mediaItems.length / ITEMS_PER_TAB
-                  );
-                  const startIdx = mediaTabIndex * ITEMS_PER_TAB;
-                  const endIdx = Math.min(
-                    startIdx + ITEMS_PER_TAB,
-                    mediaItems.length
-                  );
-                  const tabItems = mediaItems.slice(startIdx, endIdx);
-
-                  return (
-                    <>
-                      {totalTabs > 1 && (
-                        <div className='flex gap-2 overflow-x-auto pb-2'>
-                          {Array.from({ length: totalTabs }).map(
-                            (_, tabIdx) => (
+                          {sortedEntries.length > TOP_N && (
+                            <div className='flex justify-center'>
                               <button
-                                key={tabIdx}
-                                onClick={() => setMediaTabIndex(tabIdx)}
-                                className={`whitespace-nowrap rounded px-3 py-1 text-sm transition ${
-                                  mediaTabIndex === tabIdx
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
-                                }`}
+                                className='rounded px-3 py-1 ring-1'
+                                onClick={() => setShowAllCounts(true)}
                               >
-                                {tabIdx * ITEMS_PER_TAB + 1}-
-                                {Math.min(
-                                  (tabIdx + 1) * ITEMS_PER_TAB,
-                                  mediaItems.length
-                                )}
+                                Show all ({sortedEntries.length})
                               </button>
-                            )
+                            </div>
                           )}
+
+                          <div className='flex justify-between'>
+                            <span className='text-base font-medium'>Total</span>
+
+                            <span className='ml-2 text-base text-gray-500'>
+                              {currentMessage.messages.length}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    }
+
+                    // showAllCounts -> render virtualized list
+                    const entriesArray = sortedEntries;
+                    return (
+                      <>
+                        <div className='h-64'>
+                          <Virtuoso
+                            totalCount={entriesArray.length}
+                            itemContent={(idx) => {
+                              const [senderName, count] = entriesArray[idx];
+                              return (
+                                <div
+                                  className='flex justify-between px-2'
+                                  key={senderName}
+                                >
+                                  <span className='text-base'>
+                                    {decodeString(senderName)}
+                                  </span>
+                                  <span className='ml-2 text-base text-gray-500'>
+                                    (
+                                    {(
+                                      (count / currentMessage.messages.length) *
+                                      100
+                                    ).toFixed(1)}
+                                    % ) {count}
+                                  </span>
+                                </div>
+                              );
+                            }}
+                          />
                         </div>
-                      )}
 
-                      {/* Grid */}
-                      <div className='grid grid-cols-3 gap-3'>
-                        {tabItems.map((item, localIdx) => {
-                          const globalIdx = startIdx + localIdx;
-                          const isImage = ['photos', 'gifs', 'media'].includes(
-                            item.source
-                          );
-                          const isVideo = ['videos'].includes(item.source);
-                          const isAudio = ['audio', 'audio_files'].includes(
-                            item.source
-                          );
+                        <div className='mt-2 flex justify-center'>
+                          <button
+                            className='rounded px-3 py-1 ring-1'
+                            onClick={() => setShowAllCounts(false)}
+                          >
+                            Collapse
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </Collapsible>
+              )}
 
-                          if (selectedChat?.dirHandle) {
-                            return (
-                              <MediaThumbnail
-                                key={`${item.timestamp_ms}_${globalIdx}`}
-                                item={item}
-                                rootDir={selectedChat.dirHandle}
-                                isVideo={isVideo}
-                                isAudio={isAudio}
-                                onClick={() => setSelectedMediaIndex(globalIdx)}
-                              />
+              {mediaItems && mediaItems.length > 0 && (
+                <Collapsible
+                  title={`📷 Media (${mediaItems.length})`}
+                  isExpanded={mediaExpanded}
+                  onToggle={toggleMedia}
+                  containerClassName='flex flex-col gap-4 py-4 px-5'
+                >
+                  {/* Tabs */}
+                  {(() => {
+                    const ITEMS_PER_TAB = 300;
+                    const totalTabs = Math.ceil(
+                      mediaItems.length / ITEMS_PER_TAB
+                    );
+                    const startIdx = mediaTabIndex * ITEMS_PER_TAB;
+                    const endIdx = Math.min(
+                      startIdx + ITEMS_PER_TAB,
+                      mediaItems.length
+                    );
+                    const tabItems = mediaItems.slice(startIdx, endIdx);
+
+                    return (
+                      <>
+                        {totalTabs > 1 && (
+                          <div className='flex gap-2 overflow-x-auto pb-2'>
+                            {Array.from({ length: totalTabs }).map(
+                              (_, tabIdx) => (
+                                <button
+                                  key={tabIdx}
+                                  onClick={() => setMediaTabIndex(tabIdx)}
+                                  className={`whitespace-nowrap rounded px-3 py-1 text-sm transition ${
+                                    mediaTabIndex === tabIdx
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'
+                                  }`}
+                                >
+                                  {tabIdx * ITEMS_PER_TAB + 1}-
+                                  {Math.min(
+                                    (tabIdx + 1) * ITEMS_PER_TAB,
+                                    mediaItems.length
+                                  )}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        )}
+
+                        {/* Grid */}
+                        <div className='grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3'>
+                          {tabItems.map((item, localIdx) => {
+                            const globalIdx = startIdx + localIdx;
+                            const isImage = [
+                              'photos',
+                              'gifs',
+                              'media',
+                            ].includes(item.source);
+                            const isVideo = ['videos'].includes(item.source);
+                            const isAudio = ['audio', 'audio_files'].includes(
+                              item.source
                             );
-                          }
 
-                          return null;
-                        })}
-                      </div>
+                            if (selectedChat?.dirHandle) {
+                              return (
+                                <MediaThumbnail
+                                  key={`${item.timestamp_ms}_${globalIdx}`}
+                                  item={item}
+                                  rootDir={selectedChat.dirHandle}
+                                  isVideo={isVideo}
+                                  isAudio={isAudio}
+                                  onClick={() =>
+                                    setSelectedMediaIndex(globalIdx)
+                                  }
+                                />
+                              );
+                            }
 
-                      {/* Info */}
-                      <div className='text-center text-sm text-gray-500'>
-                        Showing {startIdx + 1}-{endIdx} of {mediaItems.length}{' '}
-                        items
-                      </div>
-                    </>
-                  );
-                })()}
-              </Collapsible>
-            )}
-          </div>
+                            return null;
+                          })}
+                        </div>
+
+                        {/* Info */}
+                        <div className='text-center text-sm text-gray-500'>
+                          Showing {startIdx + 1}-{endIdx} of {mediaItems.length}{' '}
+                          items
+                        </div>
+                      </>
+                    );
+                  })()}
+                </Collapsible>
+              )}
+            </div>
+          </>
         )}
 
         {/* Media Viewer Modal */}

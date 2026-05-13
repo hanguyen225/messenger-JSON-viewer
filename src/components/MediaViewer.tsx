@@ -47,6 +47,7 @@ export default function MediaViewer({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [touchStart, setTouchStart] = useState(0);
 
   const currentItem = mediaItems[currentIndex];
   const isVideo = ['videos'].includes(currentItem.source);
@@ -103,9 +104,38 @@ export default function MediaViewer({
       }
     };
 
+    const handleTouchStart = (e: TouchEvent) => {
+      setTouchStart(e.touches[0]?.clientX || 0);
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      const touchEnd = e.changedTouches[0]?.clientX || 0;
+      const diff = touchStart - touchEnd;
+
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) {
+          // Swiped left -> next
+          setCurrentIndex((prev) =>
+            prev < mediaItems.length - 1 ? prev + 1 : 0
+          );
+        } else {
+          // Swiped right -> previous
+          setCurrentIndex((prev) =>
+            prev > 0 ? prev - 1 : mediaItems.length - 1
+          );
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mediaItems.length, onClose]);
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [mediaItems.length, onClose, touchStart]);
 
   const goNext = () => {
     setCurrentIndex((prev) => (prev < mediaItems.length - 1 ? prev + 1 : 0));
@@ -130,7 +160,7 @@ export default function MediaViewer({
       {onJumpToMessage && (
         <button
           onClick={() => onJumpToMessage(currentItem)}
-          className='absolute top-4 right-16 flex items-center gap-2 rounded-full bg-blue-600 p-2 transition hover:bg-blue-700'
+          className='absolute top-4 right-16 hidden items-center gap-2 rounded-full bg-blue-600 p-2 transition hover:bg-blue-700 sm:flex'
           title='Jump to message'
         >
           <LinkIcon width={24} className='text-white' />
@@ -147,10 +177,10 @@ export default function MediaViewer({
         {/* Previous button */}
         <button
           onClick={goPrev}
-          className='absolute left-4 rounded-full p-3 transition hover:bg-white/10 disabled:opacity-50'
-          title='Previous (← Arrow)'
+          className='absolute left-4 rounded-full p-2 transition hover:bg-white/10 disabled:opacity-50 sm:p-3'
+          title='Previous (← Arrow / Swipe)'
         >
-          <ChevronLeftIcon width={32} className='text-white' />
+          <ChevronLeftIcon width={24} className='text-white sm:w-8' />
         </button>
 
         {/* Media display */}
@@ -203,10 +233,10 @@ export default function MediaViewer({
         {/* Next button */}
         <button
           onClick={goNext}
-          className='absolute right-4 rounded-full p-3 transition hover:bg-white/10 disabled:opacity-50'
-          title='Next (→ Arrow)'
+          className='absolute right-4 rounded-full p-2 transition hover:bg-white/10 disabled:opacity-50 sm:p-3'
+          title='Next (→ Arrow / Swipe)'
         >
-          <ChevronRightIcon width={32} className='text-white' />
+          <ChevronRightIcon width={24} className='text-white sm:w-8' />
         </button>
       </div>
     </div>
