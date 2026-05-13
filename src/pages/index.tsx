@@ -1196,12 +1196,12 @@ export default function HomePage() {
 
         {/* Media Viewer Modal */}
         {selectedMediaIndex !== null &&
-          selectedChat?.dirHandle &&
+          (selectedChat?.dirHandle || (archiveMode === 'server' && folderName)) &&
           mediaItems.length > 0 && (
             <MediaViewer
               mediaItems={mediaItems}
               initialIndex={selectedMediaIndex}
-              rootDir={selectedChat.dirHandle}
+              rootDir={selectedChat?.dirHandle ?? undefined}
               onClose={() => setSelectedMediaIndex(null)}
               onJumpToMessage={jumpToMediaMessage}
               folderName={folderName ?? undefined}

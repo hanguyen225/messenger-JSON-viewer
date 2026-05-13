@@ -62,12 +62,10 @@ export default function MediaViewer({
     const loadMedia = async () => {
       try {
         if (archiveMode === 'server' && folderName) {
-          // Load from server
-          const blob = await getServerFile(folderName, normalizedUri);
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            setMediaUrl(url);
-          }
+          // For server mode, use direct URL for better iOS compatibility
+          // instead of blob URLs which can be problematic on iOS Safari
+          const directUrl = `/api/archive/files/inbox/${folderName}/${normalizedUri}`;
+          setMediaUrl(directUrl);
         } else if (rootDir) {
           // Load from local filesystem
           const hints = ATTACHMENT_FOLDER_HINTS[currentItem.source] || [];
@@ -94,7 +92,7 @@ export default function MediaViewer({
     loadMedia();
 
     return () => {
-      if (mediaUrl) {
+      if (mediaUrl && mediaUrl.startsWith('blob:')) {
         URL.revokeObjectURL(mediaUrl);
       }
     };
@@ -171,7 +169,7 @@ export default function MediaViewer({
       {onJumpToMessage && (
         <button
           onClick={() => onJumpToMessage(currentItem)}
-          className='absolute top-4 right-16 hidden items-center gap-2 rounded-full bg-blue-600 p-2 transition hover:bg-blue-700 sm:flex'
+          className='absolute top-4 right-16 flex items-center gap-2 rounded-full bg-blue-600 p-2 transition hover:bg-blue-700'
           title='Jump to message'
         >
           <LinkIcon width={24} className='text-white' />
