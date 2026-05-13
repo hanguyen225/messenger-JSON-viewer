@@ -485,10 +485,10 @@ export default function HomePage() {
         <div
           className={cx(
             'fixed left-0 top-0 z-40 h-full overflow-hidden border-r border-solid bg-white dark:border-gray-600 dark:bg-gray-900 lg:static lg:w-auto lg:max-w-[350px]',
-            'hidden lg:flex',
-            {
-              'flex w-full max-w-[350px]': sidebarOpen,
-            },
+            sidebarOpen || isDesktop ? 'flex' : 'hidden',
+            'lg:flex',
+            'w-full lg:w-auto',
+            'max-w-[350px]',
             'h-full max-h-full flex-col transition-all'
           )}
           style={{
