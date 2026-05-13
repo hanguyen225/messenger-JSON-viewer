@@ -52,10 +52,7 @@ export async function getServerMessageJSON(
   dirName: string
 ): Promise<string | null> {
   try {
-    // Try message_1.json first, then collect all message_*.json
-    const res = await fetch(
-      `/api/archive/files/inbox/${dirName}/message_1.json`
-    );
+    const res = await fetch(`/api/archive/messages/${dirName}`);
     if (!res.ok) {
       return null;
     }

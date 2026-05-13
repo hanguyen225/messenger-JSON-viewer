@@ -108,6 +108,7 @@ export default function HomePage() {
     null
   );
   const [search, setSearch] = useState('');
+  const [isDesktop, setIsDesktop] = useState(false);
   const [sidebarOpen, , toggleSidebar] = useToggle(false);
   const [infoPanelOpen, , toggleInfoPanel] = useToggle(false);
   const [chatMembersInfoExpanded, , toggleChatMembersInfo] = useToggle(false);
@@ -117,6 +118,7 @@ export default function HomePage() {
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(
     null
   );
+  const [perspectiveName, setPerspectiveName] = useState<string | null>(null);
   const [mediaTabIndex, setMediaTabIndex] = useState(0);
   const [messageCacheVersion, setMessageCacheVersion] = useState(0);
 
@@ -140,28 +142,30 @@ export default function HomePage() {
   }, [windowControlsOverlayRect]);
 
   const messageGroupRef = useRef<VirtuosoHandle>(null);
-  const [visibleStart, setVisibleStart] = useState(0);
-  const VISIBLE_CHUNK = Number.MAX_SAFE_INTEGER;
+
+  // Track desktop screen size
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    handleResize(); // Set initial value
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     // Reset search when changing chats
     setMessageSearch('');
     setMessageSearchIndex(0);
     setMediaTabIndex(0);
-
     const position = scrollPositionStore.get(folderName!);
-
-    // Initialize visible window to last VISIBLE_CHUNK groups
-    const start = Math.max(0, groupedMessages.length - VISIBLE_CHUNK);
-    setVisibleStart(start);
 
     const targetIndex = position || groupedMessages.length - 1;
 
-    // Scroll to index relative to visibleStart
-    const relativeIndex = Math.max(0, targetIndex - start);
-
+    // Scroll to absolute group index
     messageGroupRef.current?.scrollToIndex({
-      index: relativeIndex,
+      index: Math.max(0, targetIndex),
       align: 'end',
     });
   }, [folderName, groupedMessages]);
@@ -246,11 +250,11 @@ export default function HomePage() {
     return data.find((chat) => chat.dirName === folderName) ?? null;
   }, [data, folderName]);
 
-  // Display window of grouped messages to avoid virtualization limits
-  const displayGroups = useMemo(() => {
-    if (!groupedMessages || groupedMessages.length === 0) return [];
-    return groupedMessages.slice(visibleStart);
-  }, [groupedMessages, visibleStart]);
+  useEffect(() => {
+    setPerspectiveName(null);
+  }, [folderName]);
+
+  const displayGroups = groupedMessages;
 
   // Build global list of search results across all grouped messages (not limited to window)
   const searchResults = useMemo(() => {
@@ -336,7 +340,6 @@ export default function HomePage() {
     const msgInSorted = sortedMessages[targetMessageIndex];
 
     let targetGroup = 0;
-    let cum = 0;
     for (let gi = 0; gi < groupedMessages.length; gi++) {
       const group = groupedMessages[gi];
       if (
@@ -349,38 +352,14 @@ export default function HomePage() {
         targetGroup = gi;
         break;
       }
-      cum += group.length;
     }
 
-    // Adjust visible window if needed
-    const windowStart = visibleStart;
-    const windowEnd = visibleStart + displayGroups.length - 1;
-
-    let desiredStart = windowStart;
-    if (targetGroup < windowStart) {
-      desiredStart = Math.max(0, targetGroup - Math.floor(VISIBLE_CHUNK / 2));
-    } else if (targetGroup > windowEnd) {
-      desiredStart = Math.max(0, targetGroup - Math.floor(VISIBLE_CHUNK / 2));
-    }
-
-    if (desiredStart !== visibleStart) {
-      setVisibleStart(desiredStart);
-      setTimeout(() => {
-        const relative = targetGroup - desiredStart;
-        messageGroupRef.current?.scrollToIndex({
-          index: relative,
-          align: 'center',
-        });
-        setSelectedMediaIndex(null);
-      }, 50);
-    } else {
-      const relative = targetGroup - visibleStart;
-      messageGroupRef.current?.scrollToIndex({
-        index: relative,
-        align: 'center',
-      });
-      setSelectedMediaIndex(null);
-    }
+    // Scroll directly to absolute group index
+    messageGroupRef.current?.scrollToIndex({
+      index: Math.max(0, targetGroup),
+      align: 'center',
+    });
+    setSelectedMediaIndex(null);
   };
 
   // Scroll to search result when index changes
@@ -394,39 +373,15 @@ export default function HomePage() {
 
     const targetGroup = r.groupIndex;
 
-    // If target group is outside visible window, adjust visibleStart so it's visible
-    const windowStart = visibleStart;
-    const windowEnd = visibleStart + displayGroups.length - 1;
-
-    let desiredStart = windowStart;
-    if (targetGroup < windowStart) {
-      desiredStart = Math.max(0, targetGroup - Math.floor(VISIBLE_CHUNK / 2));
-    } else if (targetGroup > windowEnd) {
-      desiredStart = Math.max(0, targetGroup - Math.floor(VISIBLE_CHUNK / 2));
-    }
-
-    if (desiredStart !== visibleStart) {
-      setVisibleStart(desiredStart);
-      // wait a tick for rendering then scroll
-      setTimeout(() => {
-        const relative = targetGroup - desiredStart;
-        messageGroupRef.current?.scrollToIndex({
-          index: relative,
-          align: 'center',
-        });
-      }, 50);
-    } else {
-      const relative = targetGroup - visibleStart;
-      messageGroupRef.current?.scrollToIndex({
-        index: relative,
-        align: 'center',
-      });
-    }
+    // Scroll directly to absolute group index
+    messageGroupRef.current?.scrollToIndex({
+      index: Math.max(0, targetGroup),
+      align: 'center',
+    });
   }, [
     messageSearchIndex,
     messageSearch,
     searchResults,
-    visibleStart,
     displayGroups,
   ]);
 
@@ -529,15 +484,15 @@ export default function HomePage() {
         {/* Sidebar */}
         <div
           className={cx(
-            'fixed left-0 top-0 z-40 h-full w-full overflow-hidden border-r border-solid bg-white dark:border-gray-600 dark:bg-gray-900 lg:static lg:w-auto lg:max-w-[350px]',
+            'fixed left-0 top-0 z-40 h-full overflow-hidden border-r border-solid bg-white dark:border-gray-600 dark:bg-gray-900 lg:static lg:w-auto lg:max-w-[350px]',
+            'hidden lg:flex',
             {
-              'max-w-[350px]': sidebarOpen,
-              'hidden lg:flex': !sidebarOpen,
+              'flex w-full max-w-[350px]': sidebarOpen,
             },
-            'flex h-full max-h-full flex-col'
+            'h-full max-h-full flex-col transition-all'
           )}
           style={{
-            maxWidth: sidebarOpen ? 350 : 0,
+            maxWidth: isDesktop ? '350px' : (sidebarOpen ? '350px' : '0px'),
           }}
         >
           <div
@@ -710,7 +665,6 @@ export default function HomePage() {
                 className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
                 onClick={() => {
                   if (!currentMessage || groupedMessages.length === 0) return;
-                  setVisibleStart(0);
                   messageGroupRef.current?.scrollToIndex({
                     index: 0,
                     align: 'start',
@@ -725,13 +679,8 @@ export default function HomePage() {
                 className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
                 onClick={() => {
                   if (!currentMessage || groupedMessages.length === 0) return;
-                  const start = Math.max(
-                    0,
-                    groupedMessages.length - VISIBLE_CHUNK
-                  );
-                  setVisibleStart(start);
                   messageGroupRef.current?.scrollToIndex({
-                    index: groupedMessages.length - start - 1,
+                    index: Math.max(0, groupedMessages.length - 1),
                     align: 'end',
                   });
                 }}
@@ -847,51 +796,27 @@ export default function HomePage() {
           )}
 
           <div className='relative flex w-full flex-1 flex-col'>
-            {visibleStart > 0 && (
-              <div className='sticky top-0 z-10 flex w-full justify-center bg-white/70 py-2 dark:bg-slate-900/70'>
-                <button
-                  className='rounded px-3 py-1 ring-1'
-                  onClick={() => {
-                    // Load earlier chunk
-                    setVisibleStart(Math.max(0, visibleStart - VISIBLE_CHUNK));
-                    // small delay to allow items to render
-                    setTimeout(() => {
-                      messageGroupRef.current?.scrollToIndex({
-                        index: 0,
-                        align: 'start',
-                      });
-                    }, 50);
-                  }}
-                >
-                  Load earlier messages
-                </button>
-              </div>
-            )}
-
             <Virtuoso
               className='flex w-full flex-1 flex-col gap-5 overflow-hidden overflow-y-auto break-all'
               ref={messageGroupRef}
               totalCount={displayGroups.length}
               atBottomThreshold={40}
               rangeChanged={(range) => {
-                if (range.endIndex && range.startIndex) {
-                  // store absolute end index
-                  scrollPositionStore.set(
-                    folderName!,
-                    visibleStart + range.endIndex
-                  );
-                }
+                scrollPositionStore.set(folderName!, range.endIndex);
               }}
               itemContent={(groupIdx) => {
                 const messages = displayGroups[groupIdx];
-                const absoluteGroupIndex = visibleStart + groupIdx;
+                const absoluteGroupIndex = groupIdx;
 
                 const sectionSenderName = decodeString(messages[0].sender_name);
                 const color = randomColor({
                   seed: sectionSenderName,
                   luminosity: theme,
                 });
-                const isMe = sectionSenderName === myName;
+                const activePerspectiveName = perspectiveName
+                  ? decodeString(perspectiveName)
+                  : myName;
+                const isMe = sectionSenderName === activePerspectiveName;
 
                 return (
                   <div
@@ -991,6 +916,27 @@ export default function HomePage() {
                 isExpanded={chatMembersInfoExpanded}
                 onToggle={toggleChatMembersInfo}
               >
+                <div className='flex flex-col gap-2'>
+                  <label className='text-sm font-medium text-gray-500 dark:text-gray-400'>
+                    Perspective
+                  </label>
+
+                  <select
+                    value={perspectiveName ?? ''}
+                    onChange={(event) => {
+                      setPerspectiveName(event.target.value || null);
+                    }}
+                    className='rounded border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100'
+                  >
+                    <option value=''>Archive default</option>
+                    {currentMessage.participants.map((part) => (
+                      <option key={part.name} value={part.name}>
+                        {decodeString(part.name)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {currentMessage.participants.map((part) => {
                   const color = randomColor({
                     seed: part.name,

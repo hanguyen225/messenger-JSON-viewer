@@ -216,11 +216,16 @@ export default function MediaViewer({
             <>
               {isVideo ? (
                 <video
-                  src={mediaUrl}
                   controls
                   autoPlay
+                  playsInline
+                  controlsList='nodownload'
                   className='max-h-screen max-w-full rounded'
-                />
+                  style={{ WebkitPlaysinline: 'true' } as any}
+                >
+                  <source src={mediaUrl} type='video/mp4' />
+                  Your browser does not support the video tag.
+                </video>
               ) : (
                 <img
                   src={mediaUrl}
